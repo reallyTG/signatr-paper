@@ -1,0 +1,5 @@
+\section{Related Work}
+
+\emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable; \AT{in fact, we implemented a version of this technique in R as the baseline for our evaluation}.
+The technique described in the \emph{Randoop} paper generates sequences of method calls to test classes, and randomly generates arguments for these calls in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
+\AT{While this technique is effective at generating calls in object-oriented languages, it does not work that well in data science languages for reasons that I have yet to come up with.}
