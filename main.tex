@@ -1,13 +1,14 @@
-\documentclass[sigconf,review, anonymous]{acmart}
-\acmConference[ISSTA 2022]{ACM SIGSOFT International Symposium on Software Testing and Analysis}{18-22 July, 2022}{Daejeon, South Korea}
+\documentclass[acmsmall,review, anonymous]{acmart}
 
 \usepackage{authorcomments}
+
+\input{macros}
 
 %%
 %% end of the preamble, start of the body of the document source.
 \begin{document}
 
-\title{{\tt signatr}: Fuzzing for Function Type Signatures}
+\title{{\tt signatr}: Fuzzing for Function Type Signatures in R}
 
 %%
 %% The abstract is a short summary of the work to be presented in the
@@ -17,7 +18,7 @@ The abstract will go here.
 It will be great.
 The greatest abstract.
 
-I set up author comments for everyone: \AT{for me}, \PB{for Pierre}, \FK{for Filip}, and \JV{for Jan}, oh and \TODO{for TODOs}.
+I set up author comments for everyone: \AT{for Alexi}, \PB{for Pierre}, \FK{for Filip}, and \JV{for Jan}, oh and \TODO{for TODOs}.
 Feel free to change the colours in {\tt authorcomments.sty}.
 \end{abstract}
 
@@ -28,7 +29,11 @@ Feel free to change the colours in {\tt authorcomments.sty}.
 
 \input{sections/intro}
 \input{sections/background}
+\input{sections/approach}
+\input{sections/implementation}
 \input{sections/evaluation}
+\input{sections/discussion}
+\input{sections/limitations}
 \input{sections/related}
 
 %%

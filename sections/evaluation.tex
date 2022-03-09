@@ -1,4 +1,38 @@
 \section{Evaluation}
 
-\AT{We should think of research questions we would like to pose and answer.}
+\AT{Preamble.}
+We pose and answer the following research questions:
 
+\begin{enumerate}
+    \item How many successful call signatures are discovered with fuzzing vs. by simply observing calls?
+    \AT{This establishes that our technique is useful for expanding the type.}
+    \item To what degree does expanding the set of successful call signatures improve coverage?
+    \AT{This establishes the usefulness of looking specifically for new call signatures w.r.t. improving coverage, the usual metric for fuzzing papers.}
+    \item For those functions where fuzzing does not expand code coverage, do the coverage-guided techniques improve coverage and/or discover more signatures?
+    \AT{Hopefully, this shows that our efforts to go beyond basic random value selection are fruitful.}
+    \item Are the expanded type signatures useful? \AT{Just a thought; not sure how to measure this. Maybe move to discussion.}
+    \item How many bugs are found?
+\end{enumerate}
+
+\paragraph{Experiment Server} 
+We ran all of our experiments on a \AT{prl3 server specs}.
+All reported timing information is \AT{averaged over X runs, with standard deviations reported; timed experiments were conducted on a quiet server with few other processes running to minimize interference.}
+
+%
+% RQ1
+%
+
+\subsection{How many successful call signatures are discovered with fuzzing vs. by simply observing calls?}
+
+\paragraph{Experimental Design}
+\begin{itemize}
+    \item We ran \tool on the \TODO{Y} \AT{exported?} functions from \TODO{X} packages.
+    \item As a baseline set of successful call signatures, we consider the \textit{origin calls} to the function.
+    \item We compare the number \textbf{(?)} of unique successful call signatures reported by \tool with the set of signatures of the origin calls.
+\end{itemize}
+
+\paragraph{Results}
+
+\begin{itemize}
+    \item \TODO{Table}
+\end{itemize}

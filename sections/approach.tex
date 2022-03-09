@@ -1,0 +1,21 @@
+\section{Approach}
+
+\subsection{Database of Values}
+
+\begin{itemize}
+    \item \AT{We need to discuss the relaxation parameters, since those are central to the fuzzing approach.}
+    \item \AT{Also discuss the origin tracking, which is important as input to the fuzzer.}
+\end{itemize}
+
+\subsection{Fuzzing Technique}
+
+\begin{itemize}
+    \item Say we are fuzzing some function $f$ from a package $p$.
+    \item We first consult the database to find all values that were observed as input to $f$; these are our \textit{argument seeds}.
+    \item We iteratively generate new calls to $f$ as follows: \ldots first we relax on basically every database parameter \ldots we slowly lower relaxation as the iterations progress (this way, we explore many different parameters at the beginning, and slowly hone-in on values that are likely to work) \ldots
+    \item \AT{I'll make this into an algorithm or something.}
+\end{itemize}
+
+\subsubsection{Coverage-Guided Fuzzing}
+
+\AT{Idea: parse the code, determine branch conditions that involve parameters; run branch conditions on values in the DB to get different results; pass those in in new calls.}
