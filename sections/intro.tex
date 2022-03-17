@@ -1,2 +1,26 @@
 \section{Introduction}
 
+\subsection{Notes}
+
+There are a lot of moving parts to this.
+At a high-level, we are fuzzing in the context of dynamic languages, which is already rife with issues, e.g., knowing that a function that executed actually did so successfully, coming up with interesting and realistic inputs.
+Maybe we can argue that in trying to discover function type signatures, we are making progress on all fronts?
+We would move closer to the statically-typed scenario, which is easier.
+The value database is easy because it sort of turns a major problem on its head:
+instead of needing to generate interesting inputs, we merely need to select interesting inputs.
+I think that's the key insight that will help sell this paper. 
+
+\subsection{Actual Intro Draft}
+
+\begin{itemize}
+    \item Fuzzing in the context of dynamic languages is hard.
+    \item Oracle problem?
+    \item Functions can exhibit strange behaviour under unexpected inputs, especially with the permissive semantics of dynamic languages.
+    \item Discovering the type of a function, or at least attempting to exercise the function in the correct way, could be of great benefit to programmers and researchers alike.
+    \item For programmers, documentation is good, and static type signatures are useful documentation \AT{maybe we can talk about the popularity of TS, and how people do use types}.
+    \item For researchers, a big hurdle for fuzzing dynamic languages is that it's difficult to know the valid ways in which to exercise a function.
+    \item In this work, we identify several key challenges with fuzzing dynamic languages, and turn them on their head: (1) generating interesting inputs is difficult, and (2) knowing if successful executions are meaningful is fraught.
+    \item Rather than generate interesting inputs, we maintain a database of millions of unique values we have seen from executing exiting code, and develop a technique to write efficient and expressive queries over this database; this allows us to focus on \textit{selecting interesting inputs}, rather than generating them.
+    \item And rather than try to find inputs that cause the function to crash, we focus instead on inputs that cause the function to execute fully: this helps us establish a baseline level of trust in the function, from which future fuzzers can be applied. 
+    \item This second point has the added benefit of, essentially, determining a static type signature for the function, which is useful documentation to programmers, even in dynamic languages. 
+\end{itemize}
