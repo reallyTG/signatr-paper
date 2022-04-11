@@ -1,5 +1,7 @@
 \section{Approach}
 
+\subsection{Overview}
+
 \subsection{Database of Values}
 
 \begin{itemize}
@@ -23,4 +25,13 @@
     \item We parse the code of a function and determine the branch expressions, e.g., the checks in switch and if statements.
     \item We extract those branch expressions \textit{which directly reference function parameters}, and fuzz them separately---if an input causes the expression to evaluate to something we haven't yet seen, we save it.
     \item We can then seed the fuzzer with inputs that are likely to result in different paths through the function, expanding coverage, and expanding the set of valid signatures we observe.
+\end{itemize}
+
+\subsubsection{Post-Processing Successful Signatures}
+
+\AT{Discuss everything we do with the successful signatures we get.}
+
+\begin{itemize}
+    \item \AT{We can try to consolidate signatures in the same way as the Types for R paper does?}
+    \item \AT{We're going to look at metadata related to the return value.}
 \end{itemize}

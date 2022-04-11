@@ -2,25 +2,32 @@
 
 \subsection{Notes}
 
-There are a lot of moving parts to this.
-At a high-level, we are fuzzing in the context of dynamic languages, which is already rife with issues, e.g., knowing that a function that executed actually did so successfully, coming up with interesting and realistic inputs.
-Maybe we can argue that in trying to discover function type signatures, we are making progress on all fronts?
-We would move closer to the statically-typed scenario, which is easier.
-The value database is easy because it sort of turns a major problem on its head:
-instead of needing to generate interesting inputs, we merely need to select interesting inputs.
-I think that's the key insight that will help sell this paper. 
+We're going to focus on a study of fuzzing for successful inputs in a dynamic language.
+Fuzzers need to understand how to call a function, and that's the space we are exploring.
+We have a truly ludicrous amount of signatures, and hopefully we can come up with interesting questions and conclusions.
 
 \subsection{Actual Intro Draft}
 
 \begin{itemize}
-    \item Fuzzing in the context of dynamic languages is hard.
-    \item Oracle problem?
-    \item Functions can exhibit strange behaviour under unexpected inputs, especially with the permissive semantics of dynamic languages.
-    \item Discovering the type of a function, or at least attempting to exercise the function in the correct way, could be of great benefit to programmers and researchers alike.
-    \item For programmers, documentation is good, and static type signatures are useful documentation \AT{maybe we can talk about the popularity of TS, and how people do use types}.
-    \item For researchers, a big hurdle for fuzzing dynamic languages is that it's difficult to know the valid ways in which to exercise a function.
-    \item In this work, we identify several key challenges with fuzzing dynamic languages, and turn them on their head: (1) generating interesting inputs is difficult, and (2) knowing if successful executions are meaningful is fraught.
-    \item Rather than generate interesting inputs, we maintain a database of millions of unique values we have seen from executing exiting code, and develop a technique to write efficient and expressive queries over this database; this allows us to focus on \textit{selecting interesting inputs}, rather than generating them.
-    \item And rather than try to find inputs that cause the function to crash, we focus instead on inputs that cause the function to execute fully: this helps us establish a baseline level of trust in the function, from which future fuzzers can be applied. 
-    \item This second point has the added benefit of, essentially, determining a static type signature for the function, which is useful documentation to programmers, even in dynamic languages. 
+    \item The permissive semantics of dynamic languages complicate the task of automatically generating inputs for functions, known as \textit{fuzzing}.
+    \item In a dynamic language, functions can successfully execute while exhibiting strange behaviour when supplied with unexpected inputs (inputs that would typically be disallowed in more strict, statically typed languages), so it is difficult for fuzzers to gather much feedback about function execution.
+    \item Further complicating matters, static analysis of dynamic code is unlikely to yield meaningful insights, and so there is not much information to leverage ahead-of-time to help guide a fuzzer.
+    %
+    \item \AT{Something about why we want to fuzz dynamic languages.}
+    \item \AT{E.g., in R we want to ensure that Notebooks are robust and correct.}
+    \item \AT{E.g., server-side JavaScript is becoming increasingly popular, and fuzzing servers for security vulnerabilities would be of great benefit.}
+    %
+    % \item \AT{Something about types? Need to lead into the question at the centre of the paper.}
+    %
+    \item One of the first steps of an automated fuzzing tool is to determine what are valid inputs for a function being fuzzed, and our goal in this paper is to answer the question: \textit{how many successful calls can we find?}
+    \item \textit{Grammar-based fuzzing} is a technique in which a fuzzer is equipped with a grammar specifying a language of valid inputs \AT{, but defining these grammars can be cumbersome for programmers and they might not be portable.}
+    \item \textit{Mutation-based fuzzing} is another technique, in which a fuzzer will mutate a set of previously ``vetted'' inputs (e.g., inputs that were part of a test suite, inputs that explored a new code path through a function, etc.).
+    %
+    \item In this work, we explore the space of general-purpose fuzzing in dynamic languages, and identify several key challenges. 
+    \item We design a fuzzing approach that attempts to find successful calls to a function, with success defined as a call that did not result in an error and did not generate warnings.
+    \item Rather than generating inputs, our technique relies on a database of \AT{millions} of unique values we have seen from executing code, and develop a technique to write efficient and expressive queries over this database.
+    \item We implement this approach in a fuzzer called \tool for the R programming language, a highly popular and highly dynamic language.
+    %
+    \item To reiterate, the goal of this work is to shed some light on how difficult it is to automatically build a baseline level of understanding of dynamic code through fuzzing.
+    \item To achieve this, we report on two studies: (1) we run \tool on \numPkgsScaleStudy R packages, and report on the number of successful calls that \tool uncovered, and (2) we conduct a case study on \numFnsCaseStudy R functions, wherein we run \tool for an extended period of time and manually analyze the successful calls as well as the code to build an understanding of what constitutes a ``good'' call.
 \end{itemize}
