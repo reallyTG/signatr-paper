@@ -5,15 +5,14 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{xspace}
+\usepackage{paralist}
 
 \input{misc/listing}
 \input{misc/macros}
 
-\newcommand{\Name}{SignatR\xspace}
-
 \begin{document}
 
-\title{\Name: Fuzz Your Trace Typing}
+\title{\tool Fuzz Your Trace Typing}
 
 \begin{abstract}
 The abstract will go here.
@@ -27,6 +26,26 @@ The greatest abstract.
 I set up author comments for everyone: \AT{for Alexi}, \PB{for Pierre}, \FK{for
 Filip}, and \JV{for Jan}, oh and \TODO{for TODOs}. Feel free to change the
 colours in {\tt authorcomments.sty}.
+
+\FK{ 
+Plan: 
+- Abstract + Introduction + R background (1.5 page)
+- Approach (2.25 pages)
+    - overview of the approach
+    - details about the components
+    - a figure how it fits together
+        - show the two pipelines in one figure highlighting the individual packages
+- Experiment (1 page)
+    - questions:
+        - Are traces enough?
+        - How polymorphic are polymorphic functions?
+    - setup: machine, corpus size, ...
+    - result: a table with number of type signatures for base arithms and use packages
+- Conclusions (.25 page)
+- Appendix
+  - show code listings from the various steps of the pipeline
+}
+
 
 \section{Introduction}
 \label{sec:introduction}
@@ -84,82 +103,61 @@ This information, and in particular the values observed during execution, are st
 We propose a fuzzing approach that relies on this database to generate new function inputs based on massive amounts of existing observed values.
 Finally, we develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
 
-We implement this approach in a tool called \tool for the R programming language, and evaluate the design of \AT{how many} type systems for R by performing a large scale evaluation on \AT{how much code, packages, functions}.
-We find \AT{\ldots}
-
 In summary, the contributions of this paper are:
+%
+\begin{inparaenum}[(1)]
+    \item a new approach to trace typing which adds fuzzing based on database of real, complex values, and
+    \item an implementation of this approach in a tool called \tool for the R programming language.
+\end{inparaenum} 
+Using the tool, we generate a value database \TODO{DB stats} and use it to fuzz trace types for \TODO{experiment stats}.
+We find \TODO{result stats}.
+%
+The tool is open source and including the dataset used for this paper, it is available online.
 
-\begin{itemize}
-    \item This is the first contribution;
-    \item This is the next contribution;
-    \item More contributions;
-    \item Finally, the last contribution.
-\end{itemize}
+\paragraph{The R Programming Language}
 
-% \subsection{New Intro Draft}
+R sports an unusual mix of language features making it a challenging target for
+tooling~\cite{morandat2012evaluating}. The relevant features are the following:
 
-% % Intro: dynamic languages are hard to build tools for.
-% The design of effective tooling for dynamic languages is complicated by their permissive semantics.
-% For example, static analysis of Python is beyond the state of the art due to a number of complex dynamic language features used frequently by developers~\cite{yang2022complex}, and JavaScript developers' frequent use of {\tt eval}, dynamic property access, and asynchrony exacerbate the difficulty of tasks ranging from static analysis \AT{cite some static analysis} to test generation~\cite{lambdatester, arteca2022nessie}.
-% JavaScript is also notorious for simply chugging along in the face of runtime errors.
+\FK{It should be relevant for building the tool right?}
 
-% % R.
-% As it happens, the dynamicity of Python and JavaScript pales in comparison to the dynamicity of R.
-% \AT{Lots to say here; base language semantics derived from ad hoc language implementation, attributes, types are fluid at run time b/c you can redefine class, which changes how dispatched functions deal with your data, etc.}
+\begin{compactitem}[$-$]
 
-% % ...gradual typing?
-% One way to curtail language dynamism is by adding static type information, and there has been significant effort in adding static types to otherwise dynamically typed languages; this is known as \textit{gradual typing}.
-% In a gradually typed program, typed and untyped code can coexist, and the precise flavor of the gradual type system dictates how typed and untyped code interact: types can checked and enforced at runtime in sound gradual typing, or entirely ignored in optional gradual typing.
-% Some gradually typed languages include TypeScript, Reticulated Python, \AT{more}.
+\item R does not have type annotations or a static type system. This means
+    there is nothing to suggest what the expected arguments or return values of
+    a function could be, and thus there is little to guide test generation.
 
-% % Gradual typing for R.
-% There is some ongoing effort~\cite{turcotte2020designing} to create a gradually typed version of R, wherein authors propose a simple type language to type functions and their parameters, with the option of enforcing those types with contracts at runtime.
-% In their evaluation, authors traced the execution of code snippets in \AT{\#} of the most popular R packages and inferred types for \AT{\#} R functions.
-% \AT{Say something about how this falls short.}
-% \AT{Connect with next points, perhaps?}
+\item Most values are vectors or lists. Values can be annotated by key-value
+    pairs called attributes. These annotations, coupled with reflection, are
+    the basic building blocks for many advanced features of R. For example, the
+    S3 dynamic dispatch mechanism (in fact R has multiple different object
+    systems but S3 is the most widespread one) is based on these attributes. An
+    R object is simply a value with \code{class} attribute denoting the class
+    the object is \texttt{instance-of}.
 
-% % ... feedback-directed techniques don't work super well?
+\item Built-in types are automatically and silently coerced from more specific
+    types to more general types when deemed appropriate. There are no global
+    coertion rules, instead, each function does the coertion of its parameters
+    as it finds it fit.
 
-% % The question.
-% In this paper, we aim to answer the following question: \textit{how bad can function type signatures become in R?}
-% \AT{<-- not the most precise way to phrase that, rethink.}
-% To achieve this, we propose an experiment wherein we fuzz R functions to try to find successful function inputs, where success is defined as execution that generates no warnings, errors, and does not crash.
-% R is a data science language, and generating plausible data is difficult; because of this, we propose a fuzzing approach that relies on a database of real R values observed during execution of \AT{millions} of R programs.
-% We implemented this fuzzing technique in a fuzzer called \tool, and \ldots.
-% \AT{Talk about evaluation.}
+\item All expressions are evaluated by-need, thus the call \code{f(a+b)}
+    contains three delayed sub-expressions, one for each variable and one for
+    the call to plus. This means that R does not pass values to functions but
+    rather passes unevaluated promises (the order of evaluation of promises is
+    part of the semantics as they can have side effects). These promises can
+    also be turned back into code by reflection.
 
-% In summary, the contributions of this paper are:
+\item R has a copy-on-write semantics for shared values. A value is shared if
+    it is accessible from more than one variable. This means that side effects
+    that change shared values are rare. This gives a functional flavor to large
+    parts of R.
 
-% \begin{itemize}
-%     \item This is the first contribution;
-%     \item This is the next contribution;
-%     \item More contributions;
-%     \item Finally, the last contribution.
-% \end{itemize}
+\item The primary abstraction in R is a function. Functions are grouped into
+    packages that can be imported. A function can be generic, allowing an
+    object-oriented style of programming. \TODO{Some stats about how many
+    parameters R functions have.} 
 
-% \subsection{Old Intro Draft}
-
-% \begin{itemize}
-%     \item The permissive semantics of dynamic languages complicate the task of automatically generating inputs for functions, known as \textit{fuzzing}.
-%     \item In a dynamic language, functions can successfully execute while exhibiting strange behaviour when supplied with unexpected inputs (inputs that would typically be disallowed in more strict, statically typed languages), so it is difficult for fuzzers to gather much feedback about function execution.
-%     \item Further complicating matters, dynamic languages do not lend themselves well to static analysis, which minimizes the amount of information that can be gleaned ahead of time to help guide a fuzzer.
-%     %
-%     \item \AT{Something about why we want to fuzz dynamic languages.}
-%     \item \AT{E.g., in R we want to ensure that Notebooks are robust and correct.}
-%     \item \AT{E.g., server-side JavaScript is becoming increasingly popular, and fuzzing servers for security vulnerabilities would be of great benefit.}
-%     %
-%     % \item \AT{Something about types? Need to lead into the question at the centre of the paper.}
-%     %
-%     % \item \textit{Grammar-based fuzzing} is a technique in which a fuzzer is equipped with a grammar specifying a language of valid inputs \AT{, but defining these grammars can be cumbersome for programmers and they might not be portable.}
-%     % \item \textit{Mutation-based fuzzing} is another technique, in which a fuzzer will mutate a set of previously ``vetted'' inputs (e.g., inputs that were part of a test suite, inputs that explored a new code path through a function, etc.).
-%     %
-%     \item In this work, we explore the space of general-purpose fuzzing in dynamic languages, and identify several key challenges. 
-%     \item We design a fuzzing approach that attempts to find successful calls to a function, with success defined as a call that did not result in an error and did not generate warnings.
-%     \item Rather than generating inputs, our technique relies on a database of \AT{millions} of unique values we have seen from executing code, and develop a technique to write efficient and expressive queries over this database.
-%     \item We implement this approach in a fuzzer called \tool for the R programming language, a highly popular and highly dynamic language.
-%     %
-%     \item We report on two studies: (1) we run \tool on \numPkgsScaleStudy R packages, and report on the successful calls that \tool uncovered, and (2) we conduct a case study on \numFnsCaseStudy R functions, wherein we run \tool for an extended period of time and manually analyze the successful calls as well as the code to build an understanding of what differentiates a ``good'' call from a ``bad'' one.
-% \end{itemize}
+\end{compactitem}
 
 \FK{Typer paper gave us a foundation for an eventual type system for R.
 It was trying to answer the quetions about:
@@ -173,72 +171,64 @@ Some questions:
 (4) How about S3 dispatch and coertion?
 }
 
-\FK{Contribution:
-(1) extend methodology: extend the trace typing approach with fuzzing - this is to improve the preciseness of the dynamic analysis - to increase the space coverage -- this goes to two axes: allow to explore code for which we have very little client code and going deeper in the case of functions for which we have client code,
-(2) tooling: "robust" tooling for tracing, value database, fuzzing and type system comparison,
-(3) report:  we use it to show that the retrofitting a type system into R while retaining the exact semantics is hard as the functions are rather polymorphic, especially the ones in base R, comparing different strategies that focus on the features that account for R's dynamism (e.g., dynamic coercion, dynamic dispatch),
-(4) public dataset: code \& data are publicly available.
-}
 
 \FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
 (2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong.
 }
 
-\section{Background and Related Work}
+\section{Related Work}
 \label{sec:background}
 
-\subsection{The R Programming Language}
+\FK{The typer paper should be mentioned in introduction so what shall be here? The tracing types paper~\cite{andreasen2016trace}, randoom?, quickcheck?, genthat?}
 
-\AT{We can probably illustrate many of the issues we grapple with in this section, which will help the reader understand R, as well as the slew of issues we face while fuzzing.}
-
-% Introduction to R.
-R is one of the most popular data science languages, and sports an unusual mix of language features~\cite{morandat2012evaluating}: it is a vectorized, lazy, dynamic, functional, object-oriented programming language.
-As an appetizer, consider the following simple R script:
-\begin{lstlisting}[escapechar=|]
-x <- 1|\label{code:basic-assign-start}|
-y <- c(2, 3)
-z <- c(4, 5, 6, 7)|\label{code:basic-assign-end}|
-
-x + y # ==> c(3, 4)|\label{code:basic-scalar-vector-add}|
-y + z # ==> c(6, 8, 8, 10)|\label{code:basic-vector-vector-add}|
-\end{lstlisting}
-Here, lines~\ref{code:basic-assign-start}-\ref{code:basic-assign-end} assign \code{1} to the variable \code{x}, and vectors \code{[2, 3]} and \code{[4, 5, 6, 7]} to \code{y} and \code{z} respectively (note: \code{c} is the vector constructor in R).
-As it happens, what appears to be the scalar \code{1} is actually a unit-length vector containing \code{1}, and R does not distinguish between the two (e.g., \code{1 == c(1)}).
-Line~\ref{code:basic-scalar-vector-add} adds \code{1} to each element of the vector \code{c(2, 3)}, and line~\ref{code:basic-vector-vector-add} shows how vectors of different lengths can be added with the same \code{`+`} function (here, the 2 length vector is duplicated and added to the longer one).
-These vectors are homogeneous in that they can only contain values of a given primitive type.
-\AT{Probably a little more to say about this.}
-
-% Types.
-R has a few notions of type, and the two most commonly used are the \textit{type tag} of a value \code{v}, accessed through \code{typeof(v)}, and the \textit{class} of \code{v}, accessed through \code{class(v)}.
-The \code{typeof} type of a value cannot be changed, and includes six primitive types (logical, integer, double, complex, character, and raw byte), a list type, an environment type, and many more.
-The class of a value can be changed easily at run time by assigning to a value's class attribute (e.g., \code{class(x) <- "SomeNewClass"}), and the class of a value is nothing more than a list of class names.
-
-% Dispatch.
-The class of values is important at run time as R has dynamic dispatch mechanisms (in fact, R has many different dynamic dispatch mechanisms, but we focus on the most widespread S3 single dispatch in this paper). 
-In S3 dispatch, functions can be declared to dispatch on the class of a value.
-Consider:
-\begin{lstlisting}[escapechar=|]
-foo <- function(x) { UseMethod("foo", x) }|\label{code:dispatch-generic}|
-foo.A <- function(x) { "you called foo.A" }|\label{code:dispatch-A}|
-foo.B <- function(x) { "you called foo.B" }|\label{code:dispatch-B}|
-
-q <- 2
-class(q) <- "A"
-foo(q) # ==> "you called foo.A"|\label{code:dispatch-call-A}|
-class(q) <- "B"
-foo(q) # ==> "you called foo.B"|\label{code:dispatch-call-B}|
-\end{lstlisting}
-On line~\ref{code:dispatch-generic} a function \code{foo} is defined to dispatch on the class of parameter \code{x} through \code{UseMethod("foo", x)}, which essentially states that \code{foo.CN} will be called if \code{class(x) == "CN"}.
-This is evidenced on line~\ref{code:dispatch-call-A}, where \code{foo.A} is called since \code{class(q)} is \code{"A"}, and similarly on line~\ref{code:dispatch-call-B} with \code{q} having changed to class \code{"B"}.
-
-% Problems with dispatch
-Dynamic dispatch, dynamic typing, and the class of values being so fluid contribute heavily to the unpredictability of R code.
-Any S3 dispatch method (like \code{foo} in the previous code snippet) can be extended with more dispatch targets dynamically by defining new functions at run time (e.g., defining other \code{foo.CN}).
-\AT{Ugh, reword:} This, combined with the fact that the class of a value is ignored by R unless it is needed, means that the behavior of a function may change unexpectedly as new classes and dispatch targets are introduced.
-
-\subsection{Related Work}
-
-\AT{I am using subsections right now to keep the related work grouped, but will probably drop them once there's more stuff here.}
+% \subsection{The R Programming Language}
+%
+% \AT{We can probably illustrate many of the issues we grapple with in this section, which will help the reader understand R, as well as the slew of issues we face while fuzzing.}
+%
+% % Introduction to R.
+% R is one of the most popular data science languages, and sports an unusual mix of language features~\cite{morandat2012evaluating}: it is a vectorized, lazy, dynamic, functional, object-oriented programming language.
+% As an appetizer, consider the following simple R script:
+% \begin{lstlisting}[escapechar=|]
+% x <- 1|\label{code:basic-assign-start}|
+% y <- c(2, 3)
+% z <- c(4, 5, 6, 7)|\label{code:basic-assign-end}|
+%
+% x + y # ==> c(3, 4)|\label{code:basic-scalar-vector-add}|
+% y + z # ==> c(6, 8, 8, 10)|\label{code:basic-vector-vector-add}|
+% \end{lstlisting}
+% Here, lines~\ref{code:basic-assign-start}-\ref{code:basic-assign-end} assign \code{1} to the variable \code{x}, and vectors \code{[2, 3]} and \code{[4, 5, 6, 7]} to \code{y} and \code{z} respectively (note: \code{c} is the vector constructor in R).
+% As it happens, what appears to be the scalar \code{1} is actually a unit-length vector containing \code{1}, and R does not distinguish between the two (e.g., \code{1 == c(1)}).
+% Line~\ref{code:basic-scalar-vector-add} adds \code{1} to each element of the vector \code{c(2, 3)}, and line~\ref{code:basic-vector-vector-add} shows how vectors of different lengths can be added with the same \code{`+`} function (here, the 2 length vector is duplicated and added to the longer one).
+% These vectors are homogeneous in that they can only contain values of a given primitive type.
+% \AT{Probably a little more to say about this.}
+%
+% % Types.
+% R has a few notions of type, and the two most commonly used are the \textit{type tag} of a value \code{v}, accessed through \code{typeof(v)}, and the \textit{class} of \code{v}, accessed through \code{class(v)}.
+% The \code{typeof} type of a value cannot be changed, and includes six primitive types (logical, integer, double, complex, character, and raw byte), a list type, an environment type, and many more.
+% The class of a value can be changed easily at run time by assigning to a value's class attribute (e.g., \code{class(x) <- "SomeNewClass"}), and the class of a value is nothing more than a list of class names.
+%
+% % Dispatch.
+% The class of values is important at run time as R has dynamic dispatch mechanisms (in fact, R has many different dynamic dispatch mechanisms, but we focus on the most widespread S3 single dispatch in this paper). 
+% In S3 dispatch, functions can be declared to dispatch on the class of a value.
+% Consider:
+% \begin{lstlisting}[escapechar=|]
+% foo <- function(x) { UseMethod("foo", x) }|\label{code:dispatch-generic}|
+% foo.A <- function(x) { "you called foo.A" }|\label{code:dispatch-A}|
+% foo.B <- function(x) { "you called foo.B" }|\label{code:dispatch-B}|
+%
+% q <- 2
+% class(q) <- "A"
+% foo(q) # ==> "you called foo.A"|\label{code:dispatch-call-A}|
+% class(q) <- "B"
+% foo(q) # ==> "you called foo.B"|\label{code:dispatch-call-B}|
+% \end{lstlisting}
+% On line~\ref{code:dispatch-generic} a function \code{foo} is defined to dispatch on the class of parameter \code{x} through \code{UseMethod("foo", x)}, which essentially states that \code{foo.CN} will be called if \code{class(x) == "CN"}.
+% This is evidenced on line~\ref{code:dispatch-call-A}, where \code{foo.A} is called since \code{class(q)} is \code{"A"}, and similarly on line~\ref{code:dispatch-call-B} with \code{q} having changed to class \code{"B"}.
+%
+% % Problems with dispatch
+% Dynamic dispatch, dynamic typing, and the class of values being so fluid contribute heavily to the unpredictability of R code.
+% Any S3 dispatch method (like \code{foo} in the previous code snippet) can be extended with more dispatch targets dynamically by defining new functions at run time (e.g., defining other \code{foo.CN}).
+% \AT{Ugh, reword:} This, combined with the fact that the class of a value is ignored by R unless it is needed, means that the behavior of a function may change unexpectedly as new classes and dispatch targets are introduced.
 
 \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable; \AT{in fact, we implemented a version of this technique in R as the baseline for our evaluation}.
 The technique described in the \emph{Randoop} paper generates sequences of method calls to test classes, and randomly generates arguments for these calls in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
@@ -254,8 +244,6 @@ Further work on \emph{Nessie}~\cite{arteca2022nessie} expanded upon the approach
 Other work on fuzzing deep-learning libraries in Python~\cite{wei2022free} explicitly cite Python being a dynamic language as a challenge for test generation; an important part of the pipeline in the paper is inferring types for function parameters by running existing code.
 
 \AT{A few disparate things on Python, Alexi has the links.}
-
-\FK{What relates to our work: (1) retrofitting type systems, (2) mining function specifications (dynamic invariants, (3) evaluating type systems?, (4) type systems for R, (4) tracing.}
 
 \section{Fuzzy Trace Typing}
 \label{sec:fuzzy}
@@ -289,6 +277,11 @@ The database also provides a convenient query API; i.e., one may sample values r
     \item \AT{Also discuss the origin tracking, which is important as input to the fuzzer.}
 \end{itemize}
 
+The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++. 
+It uses the standard R serialization to serialize R values. 
+The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
+During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
+
 \subsection{Fuzzing Technique}
 
 \AT{WIP Draft. 
@@ -311,17 +304,6 @@ If there were no errors, warnings, or crashes, then the successful call is added
 
 \input{code-and-figures/approach-algorithms.tex}
 
-\section{Implementation}
-\label{sec:implementation}
-
-\subsection{Tracer}
-\subsection{Database}
-The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++. 
-It uses the standard R serialization to serialize R values. 
-The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
-During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
-
-\subsection{Fuzzer}
 The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
 The type system is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$). 
 The current implementation of \tool uses {\tt contractr}~\cite{turcotte2020designing} to infer types, and uses the subtyping rules described in that paper.
@@ -362,7 +344,7 @@ All reported timing information is \AT{averaged over X runs, with standard devia
 
 \appendix
 
-\section{\Name tutorial}
+\section{\tool tutorial}
 
 \end{document}
 \endinput
