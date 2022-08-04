@@ -1,0 +1,31 @@
+
+\lstset{language=R}
+\definecolor{LightGray}{rgb}{.92,.92,.92}
+\definecolor{Gray}{rgb}{.3,.3,.3}
+\definecolor{DarkGray}{rgb}{.5,.5,.5}
+\lstset{ %
+  columns=flexible,
+  captionpos=b,
+  frame=single,
+  framerule=0pt,
+  tabsize=2,
+  belowskip=0.5em,
+  backgroundcolor=\color{LightGray},
+  basicstyle=\small\ttfamily,
+  emphstyle=,
+  keywordstyle=,
+  commentstyle=\color{Gray}\em,
+  stringstyle=\color{Gray},
+  numbers=left,
+  showstringspaces=false
+}
+\lstdefinestyle{R}{ %
+  language=R,
+  morekeywords={assign, delayedAssign},
+  deletekeywords={env, equal, c, runif, trace, args, exp, t, all},
+  breaklines=true
+}
+\lstdefinestyle{Rin}{ %
+  style=R,
+  breaklines=false
+}
