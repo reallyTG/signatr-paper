@@ -12,6 +12,9 @@ This technique is effective at generating tests involving non-trivial objects th
 
 Many of the aforementioned techniques rely on static function parameter types in creating values with which to call a function, and dynamic languages do not have static type information.
 For example, \emph{LambdaTester}~\cite{lambdatester} focuses on test generation for higher-order functions in JavaScript; a discovery phase is required to identify which parameters are expected to be callbacks, and all other, non-callback arguments are generated in a similar manner to \emph{Randoop}.
-\AT{add follow-up to LambdaTester, ICSE'22}
+Further work on \emph{Nessie}~\cite{arteca2022nessie} expanded upon the approach presented in \emph{LambdaTester} to generate tests for asynchronous callbacks using sequencing and nesting.
+Other work on fuzzing deep-learning libraries in Python~\cite{wei2022free} explicitly cite Python being a dynamic language as a challenge for test generation; an important part of the pipeline in the paper is inferring types for function parameters by running existing code.
 
 \AT{A few disparate things on Python, Alexi has the links.}
+
+\FK{What relates to our work: (1) retrofitting type systems, (2) mining function specifications (dynamic invariants, (3) evaluating type systems?, (4) type systems for R, (4) tracing.}

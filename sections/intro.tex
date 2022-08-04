@@ -1,33 +1,159 @@
-\section{Introduction}
+\section{Intro (for type system testing tool)}
 
-\subsection{Notes}
+% Retrofitting type systems onto dynamic languages is desirable.
+% __ helps reasoning about code
+% __ helps maintainability
+Dynamic languages are ubiquitous.
+For example, JavaScript is the most popular language on GitHub (according to the state of the Octoverse~\cite{state-of-octoverse-2021}), and is the lingua franca of web development both client-side, and server-side thanks to Node.js.
+Python is the next most popular language on GitHub, owing a lot of its popularity to its use in the machine learning community.
+For nontraditional programmers such as scientists and statisticians, R is often the language of choice for their statistical analyses.
+The ease of use of these languages plays a big part in their popularity, as many new programmers gravitate to them for their unobtrusive semantics.
+That said, dynamic languages are notoriously difficult to reason about statically (\AT{cite some stuff here}), as the dynamism inherent in the semantics complicates static analyses.
 
-We're going to focus on a study of fuzzing for successful inputs in a dynamic language.
-Fuzzers need to understand how to call a function, and that's the space we are exploring.
-We have a truly ludicrous amount of signatures, and hopefully we can come up with interesting questions and conclusions.
+% There are a few type systems for dynamic languages.
+% __ TypeScript, etc.
+To help curtail language dynamism, significant effort has been expended in retrofitting static type systems onto these languages; this is known as \textit{gradual typing}.
+In a gradually typed program, typed and untyped code can coexist, and the precise flavor of the gradual type system dictates how typed and untyped code interact: for instance, types can be checked and enforced at runtime in sound gradual typing (in languages such as SafeTypeScript~\cite{rastogi2015safe}), or entirely ignored in optional gradual typing (e.g., in TypeScript).
+As it happens, TypeScript is the fourth most popular language in the aforementioned state of the Octoverse~\cite{state-of-octoverse-2021}, and the added static types help projects evolve with grace with their added documentation.
 
-\subsection{Actual Intro Draft}
+% Retrofitting type systems onto dynamic languages is complicated.
+% __ highly dynamic features can be hard to describe statically, and can be expensive to check
+% __ language semantics are sussy
+Designing a useful gradual type system for a dynamic language is difficult as dynamism is pervasive in these languages, and describing highly dynamic code statically is fraught.
+For example, the \code{eval} function that executes arbitrary strings as code is frequently used in JavaScript~\cite{richards2011eval}, and reasoning about what that code does ahead-of-time is extremely challenging.
+TypeScript, along with all other gradually typed languages, includes an \code{any} type for these situations, which essentially states that no information about the value is known.
+This \code{any} type is essentially an ``escape hatch'' that lets programmers escape the type system when they want to do something dynamic, and designing a type system that minimizes the need for said escape hatch is desirable; to that end, gradual type system designers should be aware of how the language is used in practice, and e.g. recent work~\cite{turcotte2020designing} reports on a large corpus analysis of R code in an effort to understand how programmers use the language, and authors leverage this information to design a simple type annotation language for R functions.
+\AT{More examples? Maybe trace typing.}
+
+% Beyond accounting for existing code, we must account for other, unexpected inputs.
+% __ as compared with trace typing
+% __ type systems must guard against new inputs
+\AT{I think there's a subtle argument to be made here. 
+It's not enough to look at existing code, because really your type system does two things: a type on a function describes what your function accepts, and, implicitly, \textit{also what it rejects}.
+In that sense, fuzzing can be an important part of inferring a type for something.}
+Focusing on designing type systems that account for existing code is a good start, but inevitably new code will be written that an effective type system must deal with.
+In a sense, static types on function parameters help guard a function against unexpected inputs, and so it is important when evaluating potential type systems to exercise code in unexpected ways. 
+For example, a programmer might not be aware that their code can be exercised in a certain way, and existing code has not fully exercised the function (e.g., perhaps the programmer did not fully test their function).
+
+% Fuzzing to the rescue?
+Fuzzing is a technique wherein functions are called with many inputs to try to find bugs.
+This technique could be leveraged to instead try to find successful calls to a function.
+The resulting approach can be used by type system designers to see how their types match up with possible function use, rather than just intended function use.
+Moreover, it could be used by developers to help infer specifications for their functions, and help them understand how their code behaves in the wild.
+
+% We propose an approach for evaluating type system designs against both existing and new code.
+% __ trace collects existing calls and values
+% __ database indexes values, provides query API
+% __ fuzzer takes advantage of massive amounts of realistic inputs to generate new function inputs
+% __ merge strategy parameterized over type systems T expressed as (1) a function to determine the type of a value, and (2) a set of rules describing which pairs of types are compatible
+% __ large scale evaluation of type system designs for R
+In this work, we propose an approach for evaluating gradual type system designs with respect to both existing and new code.
+We develop a tracer that collects information about function calls and values observed during code execution.
+This information, and in particular the values observed during execution, are stored in a database with an expressive query API.
+We propose a fuzzing approach that relies on this database to generate new function inputs based on massive amounts of existing observed values.
+Finally, we develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
+
+We implement this approach in a tool called \tool for the R programming language, and evaluate the design of \AT{how many} type systems for R by performing a large scale evaluation on \AT{how much code, packages, functions}.
+We find \AT{\ldots}
+
+In summary, the contributions of this paper are:
 
 \begin{itemize}
-    \item The permissive semantics of dynamic languages complicate the task of automatically generating inputs for functions, known as \textit{fuzzing}.
-    \item In a dynamic language, functions can successfully execute while exhibiting strange behaviour when supplied with unexpected inputs (inputs that would typically be disallowed in more strict, statically typed languages), so it is difficult for fuzzers to gather much feedback about function execution.
-    \item Further complicating matters, static analysis of dynamic code is unlikely to yield meaningful insights, and so there is not much information to leverage ahead-of-time to help guide a fuzzer.
-    %
-    \item \AT{Something about why we want to fuzz dynamic languages.}
-    \item \AT{E.g., in R we want to ensure that Notebooks are robust and correct.}
-    \item \AT{E.g., server-side JavaScript is becoming increasingly popular, and fuzzing servers for security vulnerabilities would be of great benefit.}
-    %
-    % \item \AT{Something about types? Need to lead into the question at the centre of the paper.}
-    %
-    \item One of the first steps of an automated fuzzing tool is to determine what are valid inputs for a function being fuzzed, and our goal in this paper is to answer the question: \textit{how many successful calls can we find?}
-    \item \textit{Grammar-based fuzzing} is a technique in which a fuzzer is equipped with a grammar specifying a language of valid inputs \AT{, but defining these grammars can be cumbersome for programmers and they might not be portable.}
-    \item \textit{Mutation-based fuzzing} is another technique, in which a fuzzer will mutate a set of previously ``vetted'' inputs (e.g., inputs that were part of a test suite, inputs that explored a new code path through a function, etc.).
-    %
-    \item In this work, we explore the space of general-purpose fuzzing in dynamic languages, and identify several key challenges. 
-    \item We design a fuzzing approach that attempts to find successful calls to a function, with success defined as a call that did not result in an error and did not generate warnings.
-    \item Rather than generating inputs, our technique relies on a database of \AT{millions} of unique values we have seen from executing code, and develop a technique to write efficient and expressive queries over this database.
-    \item We implement this approach in a fuzzer called \tool for the R programming language, a highly popular and highly dynamic language.
-    %
-    \item To reiterate, the goal of this work is to shed some light on how difficult it is to automatically build a baseline level of understanding of dynamic code through fuzzing.
-    \item To achieve this, we report on two studies: (1) we run \tool on \numPkgsScaleStudy R packages, and report on the number of successful calls that \tool uncovered, and (2) we conduct a case study on \numFnsCaseStudy R functions, wherein we run \tool for an extended period of time and manually analyze the successful calls as well as the code to build an understanding of what constitutes a ``good'' call.
+    \item This is the first contribution;
+    \item This is the next contribution;
+    \item More contributions;
+    \item Finally, the last contribution.
 \end{itemize}
+
+% \subsection{New Intro Draft}
+
+% % Intro: dynamic languages are hard to build tools for.
+% The design of effective tooling for dynamic languages is complicated by their permissive semantics.
+% For example, static analysis of Python is beyond the state of the art due to a number of complex dynamic language features used frequently by developers~\cite{yang2022complex}, and JavaScript developers' frequent use of {\tt eval}, dynamic property access, and asynchrony exacerbate the difficulty of tasks ranging from static analysis \AT{cite some static analysis} to test generation~\cite{lambdatester, arteca2022nessie}.
+% JavaScript is also notorious for simply chugging along in the face of runtime errors.
+
+% % R.
+% As it happens, the dynamicity of Python and JavaScript pales in comparison to the dynamicity of R.
+% \AT{Lots to say here; base language semantics derived from ad hoc language implementation, attributes, types are fluid at run time b/c you can redefine class, which changes how dispatched functions deal with your data, etc.}
+
+% % ...gradual typing?
+% One way to curtail language dynamism is by adding static type information, and there has been significant effort in adding static types to otherwise dynamically typed languages; this is known as \textit{gradual typing}.
+% In a gradually typed program, typed and untyped code can coexist, and the precise flavor of the gradual type system dictates how typed and untyped code interact: types can checked and enforced at runtime in sound gradual typing, or entirely ignored in optional gradual typing.
+% Some gradually typed languages include TypeScript, Reticulated Python, \AT{more}.
+
+% % Gradual typing for R.
+% There is some ongoing effort~\cite{turcotte2020designing} to create a gradually typed version of R, wherein authors propose a simple type language to type functions and their parameters, with the option of enforcing those types with contracts at runtime.
+% In their evaluation, authors traced the execution of code snippets in \AT{\#} of the most popular R packages and inferred types for \AT{\#} R functions.
+% \AT{Say something about how this falls short.}
+% \AT{Connect with next points, perhaps?}
+
+% % ... feedback-directed techniques don't work super well?
+
+% % The question.
+% In this paper, we aim to answer the following question: \textit{how bad can function type signatures become in R?}
+% \AT{<-- not the most precise way to phrase that, rethink.}
+% To achieve this, we propose an experiment wherein we fuzz R functions to try to find successful function inputs, where success is defined as execution that generates no warnings, errors, and does not crash.
+% R is a data science language, and generating plausible data is difficult; because of this, we propose a fuzzing approach that relies on a database of real R values observed during execution of \AT{millions} of R programs.
+% We implemented this fuzzing technique in a fuzzer called \tool, and \ldots.
+% \AT{Talk about evaluation.}
+
+% In summary, the contributions of this paper are:
+
+% \begin{itemize}
+%     \item This is the first contribution;
+%     \item This is the next contribution;
+%     \item More contributions;
+%     \item Finally, the last contribution.
+% \end{itemize}
+
+% \subsection{Old Intro Draft}
+
+% \begin{itemize}
+%     \item The permissive semantics of dynamic languages complicate the task of automatically generating inputs for functions, known as \textit{fuzzing}.
+%     \item In a dynamic language, functions can successfully execute while exhibiting strange behaviour when supplied with unexpected inputs (inputs that would typically be disallowed in more strict, statically typed languages), so it is difficult for fuzzers to gather much feedback about function execution.
+%     \item Further complicating matters, dynamic languages do not lend themselves well to static analysis, which minimizes the amount of information that can be gleaned ahead of time to help guide a fuzzer.
+%     %
+%     \item \AT{Something about why we want to fuzz dynamic languages.}
+%     \item \AT{E.g., in R we want to ensure that Notebooks are robust and correct.}
+%     \item \AT{E.g., server-side JavaScript is becoming increasingly popular, and fuzzing servers for security vulnerabilities would be of great benefit.}
+%     %
+%     % \item \AT{Something about types? Need to lead into the question at the centre of the paper.}
+%     %
+%     % \item \textit{Grammar-based fuzzing} is a technique in which a fuzzer is equipped with a grammar specifying a language of valid inputs \AT{, but defining these grammars can be cumbersome for programmers and they might not be portable.}
+%     % \item \textit{Mutation-based fuzzing} is another technique, in which a fuzzer will mutate a set of previously ``vetted'' inputs (e.g., inputs that were part of a test suite, inputs that explored a new code path through a function, etc.).
+%     %
+%     \item In this work, we explore the space of general-purpose fuzzing in dynamic languages, and identify several key challenges. 
+%     \item We design a fuzzing approach that attempts to find successful calls to a function, with success defined as a call that did not result in an error and did not generate warnings.
+%     \item Rather than generating inputs, our technique relies on a database of \AT{millions} of unique values we have seen from executing code, and develop a technique to write efficient and expressive queries over this database.
+%     \item We implement this approach in a fuzzer called \tool for the R programming language, a highly popular and highly dynamic language.
+%     %
+%     \item We report on two studies: (1) we run \tool on \numPkgsScaleStudy R packages, and report on the successful calls that \tool uncovered, and (2) we conduct a case study on \numFnsCaseStudy R functions, wherein we run \tool for an extended period of time and manually analyze the successful calls as well as the code to build an understanding of what differentiates a ``good'' call from a ``bad'' one.
+% \end{itemize}
+
+\FK{Typer paper gave us a foundation for an eventual type system for R.
+It was trying to answer the quetions about:
+(1) What expressive power is needed to accurately type R code? 
+(2) Which type system is the R community willing to adopt?
+In this paper we want to move one step closer to the actual type system.
+Some questions:
+(1) Are the traces we used before enough? The reason for this question is that one of the key point of dynamic languages is that they try to "fail" as little as possible - they keep going even if the shape of the data is not exactly what it should be. So the question is what all a function can take and ideally what still makes sense (though this is much harder to get without oracles),
+(2) How polymorphic are the polymorphic functions that we see?
+(3) What should be the type base functions?
+(4) How about S3 dispatch and coertion?
+}
+
+\FK{Contribution:
+(1) extend methodology: extend the trace typing approach with fuzzing - this is to improve the preciseness of the dynamic analysis - to increase the space coverage -- this goes to two axes: allow to explore code for which we have very little client code and going deeper in the case of functions for which we have client code,
+(2) tooling: "robust" tooling for tracing, value database, fuzzing and type system comparison,
+(3) report:  we use it to show that the retrofitting a type system into R while retaining the exact semantics is hard as the functions are rather polymorphic, especially the ones in base R, comparing different strategies that focus on the features that account for R's dynamism (e.g., dynamic coercion, dynamic dispatch),
+(4) public dataset: code & data are publicly available.
+}
+
+\FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
+(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong.
+}
+
+
+
+
+

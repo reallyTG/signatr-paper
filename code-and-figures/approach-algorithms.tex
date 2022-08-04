@@ -1,0 +1,44 @@
+\begin{algorithm}
+\caption{Selecting Arguments for New Call}\label{alg:arg-sel}
+\begin{algorithmic}[1]
+\Procedure{getNewArgs}{$f,numRelax,db,succs$}
+\State{$params \gets getParameters(f)$}
+\For{$p$ in $params$}
+\LineComment{relax on $numRelax$ parameters, chosen randomly}
+\State{$relax \gets pickSome(relaxParameters, numRelax)$}
+\LineComment{get all values that $p$ had in successful calls to $f$}
+\State{$seed \gets getArgsFor(p, succs)$}
+\LineComment{choose one at random}
+\State{$v \gets pickOne(seed)$}
+\LineComment{sample a }
+\State{$args[p] \gets sampleSimilar(v, db, relax)$}
+\EndFor
+\State \textbf{return} $args$\Comment{the args for the new call}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{Fuzzing}\label{alg:fuzzer}
+\begin{algorithmic}[1]
+\Procedure{fuzzWithDB}{$f,db,budget$}
+\State $succs \gets getSuccessfulCalls(f, db)$
+\State $tick \gets budget / numRelaxParameters$
+\State $relaxThisTime \gets numRelaxParameters$
+\State $i\gets 1$
+\While{$i\not=budget$}\Comment{fuzz as much as budget allows}
+\LineComment{gradually relax on fewer parameters}
+\If{$i \bmod tick = 0$}
+\State $relaxThisTime \gets relaxThisTime - 1$
+\EndIf
+\State{$args \gets getNewArgs(f,relaxThisTime, db, succs)$}
+\State{$res \gets call(f, args)$}
+\If{no warnings, errors, crashes in $res$}
+\State{$succs \gets succs + res$}\Comment{add successful call to $succs$}
+\EndIf
+\State $i\gets i+1$
+\EndWhile\label{endfuzzloop}
+\State \textbf{return} $succs$\Comment{the successful calls to $f$}
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}

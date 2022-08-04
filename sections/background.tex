@@ -1,12 +1,70 @@
 \section{Background and Motivation}
 
-\subsection{The R Programming Language}
+\AT{We can probably illustrate many of the issues we grapple with in this section, which will help the reader understand R, as well as the slew of issues we face while fuzzing.}
 
-\subsubsection{Types for R}
+% Introduction to R.
+R is one of the most popular data science languages, and sports an unusual mix of language features~\cite{morandat2012evaluating}: it is a vectorized, lazy, dynamic, functional, object-oriented programming language.
+As an appetizer, consider the following simple R script:
+\begin{lstlisting}[escapechar=|]
+x <- 1|\label{code:basic-assign-start}|
+y <- c(2, 3)
+z <- c(4, 5, 6, 7)|\label{code:basic-assign-end}|
+
+x + y # ==> c(3, 4)|\label{code:basic-scalar-vector-add}|
+y + z # ==> c(6, 8, 8, 10)|\label{code:basic-vector-vector-add}|
+\end{lstlisting}
+Here, lines~\ref{code:basic-assign-start}-\ref{code:basic-assign-end} assign \code{1} to the variable \code{x}, and vectors \code{[2, 3]} and \code{[4, 5, 6, 7]} to \code{y} and \code{z} respectively (note: \code{c} is the vector constructor in R).
+As it happens, what appears to be the scalar \code{1} is actually a unit-length vector containing \code{1}, and R does not distinguish between the two (e.g., \code{1 == c(1)}).
+Line~\ref{code:basic-scalar-vector-add} adds \code{1} to each element of the vector \code{c(2, 3)}, and line~\ref{code:basic-vector-vector-add} shows how vectors of different lengths can be added with the same \code{`+`} function (here, the 2 length vector is duplicated and added to the longer one).
+These vectors are homogeneous in that they can only contain values of a given primitive type.
+\AT{Probably a little more to say about this.}
+
+% Types.
+R has a few notions of type, and the two most commonly used are the \textit{type tag} of a value \code{v}, accessed through \code{typeof(v)}, and the \textit{class} of \code{v}, accessed through \code{class(v)}.
+The \code{typeof} type of a value cannot be changed, and includes six primitive types (logical, integer, double, complex, character, and raw byte), a list type, an environment type, and many more.
+The class of a value can be changed easily at run time by assigning to a value's class attribute (e.g., \code{class(x) <- "SomeNewClass"}), and the class of a value is nothing more than a list of class names.
+
+% Dispatch.
+The class of values is important at run time as R has dynamic dispatch mechanisms (in fact, R has many different dynamic dispatch mechanisms, but we focus on the most widespread S3 single dispatch in this paper). 
+In S3 dispatch, functions can be declared to dispatch on the class of a value.
+Consider:
+\begin{lstlisting}[escapechar=|]
+foo <- function(x) { UseMethod("foo", x) }|\label{code:dispatch-generic}|
+foo.A <- function(x) { "you called foo.A" }|\label{code:dispatch-A}|
+foo.B <- function(x) { "you called foo.B" }|\label{code:dispatch-B}|
+
+q <- 2
+class(q) <- "A"
+foo(q) # ==> "you called foo.A"|\label{code:dispatch-call-A}|
+class(q) <- "B"
+foo(q) # ==> "you called foo.B"|\label{code:dispatch-call-B}|
+\end{lstlisting}
+On line~\ref{code:dispatch-generic} a function \code{foo} is defined to dispatch on the class of parameter \code{x} through \code{UseMethod("foo", x)}, which essentially states that \code{foo.CN} will be called if \code{class(x) == "CN"}.
+This is evidenced on line~\ref{code:dispatch-call-A}, where \code{foo.A} is called since \code{class(q)} is \code{"A"}, and similarly on line~\ref{code:dispatch-call-B} with \code{q} having changed to class \code{"B"}.
+
+% Problems with dispatch
+Dynamic dispatch, dynamic typing, and the class of values being so fluid contribute heavily to the unpredictability of R code.
+Any S3 dispatch method (like \code{foo} in the previous code snippet) can be extended with more dispatch targets dynamically by defining new functions at run time (e.g., defining other \code{foo.CN}).
+\AT{Ugh, reword:} This, combined with the fact that the class of a value is ignored by R unless it is needed, means that the behavior of a function may change unexpectedly as new classes and dispatch targets are introduced.
 
 \subsection{Fuzzing and Test Generation}
 
 \begin{itemize}
-    \item Grammar-based fuzzing:
-    \item Mutation-based fuzzing:
+    \item Grammar-based fuzzing: \AT{Likely cannot be applied in a general way.}
+    \item Mutation-based fuzzing: 
+\end{itemize}
+
+\subsection{The R Ecosystem}
+
+% CRAN and Bioconductor
+R's expansive catalogue of statistical libraries, hosted either on the Comprehensive R Archive Network (CRAN) or Bioconductor catalogues, make it very popular for data science and machine learning tasks.
+
+\subsection{\AT{Potential Points of Motivation}}
+
+\begin{itemize}
+    \item We cannot ignore classes, even though they cause bloat in type signatures.
+    The R language has many dynamic dispatch mechanisms, and even the most basic mechanism (single dispatch, S3) requires that programmers care about class.
+    \AT{This is sort of a half-baked idea, but I think it's important to emphasize why class is important, because many of the problems we face later have to do with classes.}
+    \item Some defensive programming techniques don't even work.
+    E.g., \code{typeof}-based checks ignore class.
 \end{itemize}

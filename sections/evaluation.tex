@@ -1,9 +1,8 @@
 \section{Evaluation}
 
-To get a pulse on the space of fuzzing for successful call signatures we propose a two phase evaluation: first, we run our fuzzer at scale, on all functions in many R packages, to see how many successful call signatures are uncovered.
+We propose a two phase evaluation: first, we run our fuzzer at scale, on all functions in many R packages, to see how many successful call signatures are uncovered.
+This large-scale study is conducted on \AT{a subset of?} the packages analyzed in previous work on inferring types for R functions~\cite{turcotte2020designing}, and results from fuzzing are compared with the results obtained by simply observing calls.
 Then, we conduct case studies on \numFnsCaseStudy functions, and manually analyze the results.
-
-This section reports on the results of the the large-scale evaluation, and the following section reports on the case studies.
 
 \AT{Preamble.}
 We pose and answer the following research questions:
@@ -11,6 +10,8 @@ We pose and answer the following research questions:
 \begin{enumerate}
     \item How many successful call signatures are discovered with fuzzing vs. by simply observing calls?
     \AT{This should give us a sense of the \textit{scale} of the problem.}
+    \AT{I.e., compare the types we get from building the DB to the types from the fuzzer.}
+    
     % \item To what degree does expanding the set of successful call signatures improve coverage?
     % \AT{This establishes the usefulness of looking specifically for new call signatures w.r.t. improving coverage, the usual metric for fuzzing papers.}
     % \item For those functions where fuzzing does not expand code coverage, do the coverage-guided techniques improve coverage and/or discover more signatures?

@@ -1,7 +1,14 @@
 \section{Implementation}
 
-\begin{itemize}
-    \item \textbf{Database:} The value database is implemented in C++.
-    \AT{Where should we say something about size? If we could find a way to make a smaller but equally useful DB, it might help sell this as something anyone could use.}
-    \item \textbf{Fuzzer:} The fuzzer is implemented in R, and is available as an R package.
-\end{itemize}
+\paragraph{Database}
+The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++. 
+It uses the standard R serialization to serialize R values. 
+The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
+During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
+
+\paragraph{Fuzzer}
+The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
+The type system is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$). 
+The current implementation of \tool uses {\tt contractr}~\cite{turcotte2020designing} to infer types, and uses the subtyping rules described in that paper.
+\AT{Thought: the fuzzing approach depends heavily on the database.
+Is there some way to make the database available? (Or a small version of it.)} \PB{Yje full one is huge, but we could. For a small one, sure.}
