@@ -12,12 +12,15 @@
 
 \begin{document}
 
-\title{\tool Fuzz Your Trace Typing}
+\title{\tool: Fuzz Your Trace Typing}
 
 \begin{abstract}
-The abstract will go here.
-It will be great.
-The greatest abstract.
+
+Retrofitting type systems onto dynamic languages can help programmers write more reliable code.
+That said, designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky.
+\AT{Leveraging existing code is a good start, but falls short.}
+To aid in the design of these retrofitted type systems, we propose an approach that uses fuzzing to obtain new program traces that can stress-test candidate type system designs.
+This approach is implemented in a tool called \tool for the R programming language, and this paper demonstrates \AT{\ldots}
 
 \end{abstract}
 
@@ -264,7 +267,7 @@ During tracing, one small database is generated per file, and all the small data
 \AT{WIP Draft. 
 Extremely a mouthful right now, will edit.}
 
-The fuzzing approach takes advantage of the aforementioned database of values, and is in some sense a variant of mutation-based fuzzing (where instead of mutating arguments to previous calls, new argument values are selected based on previous ones).
+The fuzzing approach takes advantage of the aforementioned database of values, and is similar in spirit to mutation-based fuzzing (where instead of mutating arguments to previous calls, new argument values are selected based on previous ones).
 
 The process of choosing arguments to construct new calls to some function $f$ is depicted in Algorithm~\ref{alg:arg-sel}.
 In addition to the function $f$ and value database $db$, the algorithm considers how many query parameters to relax on ($numRelax$), as well as all of the previously seen successful calls to $f$ ($succs$).
