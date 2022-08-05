@@ -258,14 +258,11 @@ It uses the standard R serialization to serialize R values.
 The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
 During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
 
-\subsection{Fuzzing Technique}
+\subsection{Fuzzing Technique \AT{WIP DRAFT}}
 
-\AT{WIP Draft. 
-Extremely a mouthful right now, will edit.}
+The database of values is at the core of the fuzzing approach, which is similar in spirit to mutation-based fuzzing (where instead of mutating arguments to previous calls, new argument values are selected based on previous ones).
 
-The fuzzing approach takes advantage of the aforementioned database of values, and is similar in spirit to mutation-based fuzzing (where instead of mutating arguments to previous calls, new argument values are selected based on previous ones).
-
-The process of choosing arguments to construct new calls to some function $f$ is depicted in Algorithm~\ref{alg:arg-sel}.
+The core of fuzzing is to generate new calls to a function $f$, and the process of choosing arguments to construct these calls is depicted in Algorithm~\ref{alg:arg-sel}.
 In addition to the function $f$ and value database $db$, the algorithm considers how many query parameters to relax on ($numRelax$), as well as all of the previously seen successful calls to $f$ ($succs$).
 For each parameter $p$ of $f$, the algorithm determines which parameters to relax on (this may change from one iteration to the next), finds all values that inhabited $p$ in successful calls to $f$, chooses one such value $v$, and queries the database for a value similar to $v$ in all respects, save for the parameters that are being relaxed this time.
 
@@ -274,17 +271,20 @@ First, the collection of already known successful calls to $f$ is obtained from 
 The idea in this approach is to start by selecting new arguments essentially at random by querying the database and relaxing on many parameters, and gradually reduce the number of parameters being relaxed as the fuzzer progresses.
 In terms of the algorithm, the number of parameters being relaxed is reduced every $tick$, which is determined by dividing the total fuzzing budget by the number of parameters that can be relaxed ($numRelaxParameters$).
 The function $f$ will be fuzzed for as long as the budget allows, and initially all database parameters will be relaxed.
-The fuzzing itself is straightforward: every $tick$, fewer database parameters are relaxed.
 Arguments for a new call to $f$ are generated through the approach depicted in Algorithm~\ref{alg:arg-sel} ($getNewArgs$), the call is performed, and the results are saved in $res$.
 If there were no errors, warnings, or crashes, then the successful call is added to the list of successful calls $succs$, and iteration continues until the budget is exhausted.
 
 \input{code-and-figures/approach-algorithms.tex}
 
+\subsection{Typing Successful Traces}
+
+Once the fuzzer has finished obtaining successful function call traces, the types corresponding to the successful calls are determined.
+This is the stage where a user can define their type system, which is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$).
+This helps determine the set of \textit{unique} call signatures for a function, as two calls with different values that have the same type can be collapsed at this stage.
+For example, say the identity function {\tt id} was called with {\tt 2} and {\tt 4}; the types of each of those calls is $int \rightarrow int$, and so they would be collapsed together. 
+% The current implementation of \tool uses {\tt contractr}~\cite{turcotte2020designing} to infer types, and uses the subtyping rules described in that paper.
+
 The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
-The type system is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$). 
-The current implementation of \tool uses {\tt contractr}~\cite{turcotte2020designing} to infer types, and uses the subtyping rules described in that paper.
-\AT{Thought: the fuzzing approach depends heavily on the database.
-Is there some way to make the database available? (Or a small version of it.)} \PB{Yje full one is huge, but we could. For a small one, sure.}
 
 \section{Experiments}
 \label{sec:experiments}
