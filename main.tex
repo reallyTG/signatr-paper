@@ -202,29 +202,40 @@ While this technique is effective at generating tests involving non-trivial obje
 \section{Fuzzy Trace Typing}
 \label{sec:fuzzy}
 
-\subsection{Overview}
+In this section, we will present our approach to evaluating type system designs through fuzzing.
+The approach is pictured in the diagrams in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline}:
+Fig.~\ref{fig:sxpdb-pipeline} illustrates how we obtain a database of real R values by tracing program executions (called {\tt sxpdb}), while Fig.~\ref{fig:fuzz-pipeline} illustrates how this database is leveraged by the fuzzer.
 
-\begin{itemize}
-    \item We built a tracer and ran it on a bunch of R code, observing values and their origins. 
-    %
-    \item The information obtained via tracing is collected in a database equipped with a rich query API. 
-    The origins of values can be used reconstruct the calls (in the same manner as previous work~\cite{turcotte2020designing}), and the database of values can be queried to find other potential inputs to functions.
-    %
-    \item We developed a fuzzer called \tool that takes advantage of this database to construct additional calls with \textit{realistic data} to further exercise functions.
-    %
-    \item Finally, a data analysis pipeline processes the output of the fuzzer to prepare static type signatures for fuzzed functions.
-\end{itemize}
+% \begin{itemize}
+%     \item We built a tracer and ran it on a bunch of R code, observing values and their origins. 
+%     %
+%     \item The information obtained via tracing is collected in a database equipped with a rich query API. 
+%     The origins of values can be used reconstruct the calls (in the same manner as previous work~\cite{turcotte2020designing}), and the database of values can be queried to find other potential inputs to functions.
+%     %
+%     \item We developed a fuzzer called \tool that takes advantage of this database to construct additional calls with \textit{realistic data} to further exercise functions.
+%     %
+%     \item Finally, a data analysis pipeline processes the output of the fuzzer to prepare static type signatures for fuzzed functions.
+% \end{itemize}
 
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{code-and-figures/sxdb-pipeline.pdf}
-    \caption{SXPDB creation pipeline}\label{fig:sxpdb-pipeline}
+    \caption{
+    Database creation pipeline.
+    Runnable code snippets are extracted from an input list of R packages.
+    These snippets are fed in parallel to the {\tt sxpdb-create} part of \tool, which picks out values and metadata related to them (e.g., the origin of the value). 
+    This creates a number of disparate databases that are merged into one database, which is referred to as the {\tt sxpdb}.
+    }\label{fig:sxpdb-pipeline}
 \end{figure}
 
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{code-and-figures/fuzz-pipeline.pdf}
-    \caption{Fuzzing pipeline}\label{fig:fuzz-pipeline}
+    \caption{
+    Fuzzing pipeline.
+    The {\tt sxpdb}, along with a list of R functions to fuzz, is input to the fuzzing phase of \tool.
+    The fuzzing phase fuzzes each of the functions w.r.t. the {\tt sxpdb}, which results in a collection of execution traces; these execution traces are fed tot he typing phase of \tool, which infers types for arguments and outputs a list of unique call signatures.
+    }\label{fig:fuzz-pipeline}
 \end{figure}
 
 \subsection{Tracer}
