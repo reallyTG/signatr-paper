@@ -248,14 +248,10 @@ Fig.~\ref{fig:sxpdb-pipeline} illustrates how we obtain a database of real R val
 \subsection{Database of Values}
 
 The huge amount of R values we have observed during tracing are stored in a custom-written database. 
-The values are serialized, along with their \textit{origin} (which package and function are they from, and are they an argument or return value) and some metadata such at their type, or the number of times the value was seen. 
-The database also provides a convenient query API; i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
-\AT{We can probably show an example query, and then have a precise list of all potential query parameters after.}
-
-\begin{itemize}
-    \item \AT{We need to discuss the relaxation parameters, since those are central to the fuzzing approach.}
-    \item \AT{Also discuss the origin tracking, which is important as input to the fuzzer.}
-\end{itemize}
+The values are serialized, along with their \textit{origin} (defined as which package and function are they from, and whether they are an argument or return value) and some information about the value. % such as its {\tt typeof}-type and the number of times it was seen. 
+Importantly, the database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, \AT{list all}, and length of the value. 
+% Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
+The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
 
 The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++. 
 It uses the standard R serialization to serialize R values. 
