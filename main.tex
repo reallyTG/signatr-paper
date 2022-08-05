@@ -110,7 +110,7 @@ In summary, the contributions of this paper are:
 Using the tool, we generate a value database \TODO{DB stats} and use it to fuzz trace types for \TODO{experiment stats}.
 We find \TODO{result stats}.
 %
-The tool is open source and including the dataset used for this paper, it is available online.
+The tool is open source and is available online alongside the data set used for this paper.
 
 \FK{Typer paper gave us a foundation for an eventual type system for R.
 It was trying to answer the quetions about:
@@ -134,10 +134,10 @@ Some questions:
 
 \paragraph{The R Programming Language}
 
+This paper presents an approach expanding upon trace typing, and implements this approach in a tool called \tool for the R programming language. 
 R sports an unusual mix of language features making it a challenging target for
-tooling~\cite{morandat2012evaluating}. The relevant features are the following:
-
-\FK{It should be relevant for building the tool right?}
+tooling~\cite{morandat2012evaluating}. 
+The relevant features are the following:
 
 \begin{compactitem}[$-$]
 
@@ -179,69 +179,25 @@ tooling~\cite{morandat2012evaluating}. The relevant features are the following:
 
 \FK{The typer paper should be mentioned in introduction so what shall be here? The tracing types paper~\cite{andreasen2016trace}, randoom?, quickcheck?, genthat?}
 
-% \subsection{The R Programming Language}
-%
-% \AT{We can probably illustrate many of the issues we grapple with in this section, which will help the reader understand R, as well as the slew of issues we face while fuzzing.}
-%
-% % Introduction to R.
-% R is one of the most popular data science languages, and sports an unusual mix of language features~\cite{morandat2012evaluating}: it is a vectorized, lazy, dynamic, functional, object-oriented programming language.
-% As an appetizer, consider the following simple R script:
-% \begin{lstlisting}[escapechar=|]
-% x <- 1|\label{code:basic-assign-start}|
-% y <- c(2, 3)
-% z <- c(4, 5, 6, 7)|\label{code:basic-assign-end}|
-%
-% x + y # ==> c(3, 4)|\label{code:basic-scalar-vector-add}|
-% y + z # ==> c(6, 8, 8, 10)|\label{code:basic-vector-vector-add}|
-% \end{lstlisting}
-% Here, lines~\ref{code:basic-assign-start}-\ref{code:basic-assign-end} assign \code{1} to the variable \code{x}, and vectors \code{[2, 3]} and \code{[4, 5, 6, 7]} to \code{y} and \code{z} respectively (note: \code{c} is the vector constructor in R).
-% As it happens, what appears to be the scalar \code{1} is actually a unit-length vector containing \code{1}, and R does not distinguish between the two (e.g., \code{1 == c(1)}).
-% Line~\ref{code:basic-scalar-vector-add} adds \code{1} to each element of the vector \code{c(2, 3)}, and line~\ref{code:basic-vector-vector-add} shows how vectors of different lengths can be added with the same \code{`+`} function (here, the 2 length vector is duplicated and added to the longer one).
-% These vectors are homogeneous in that they can only contain values of a given primitive type.
-% \AT{Probably a little more to say about this.}
-%
-% % Types.
-% R has a few notions of type, and the two most commonly used are the \textit{type tag} of a value \code{v}, accessed through \code{typeof(v)}, and the \textit{class} of \code{v}, accessed through \code{class(v)}.
-% The \code{typeof} type of a value cannot be changed, and includes six primitive types (logical, integer, double, complex, character, and raw byte), a list type, an environment type, and many more.
-% The class of a value can be changed easily at run time by assigning to a value's class attribute (e.g., \code{class(x) <- "SomeNewClass"}), and the class of a value is nothing more than a list of class names.
-%
-% % Dispatch.
-% The class of values is important at run time as R has dynamic dispatch mechanisms (in fact, R has many different dynamic dispatch mechanisms, but we focus on the most widespread S3 single dispatch in this paper). 
-% In S3 dispatch, functions can be declared to dispatch on the class of a value.
-% Consider:
-% \begin{lstlisting}[escapechar=|]
-% foo <- function(x) { UseMethod("foo", x) }|\label{code:dispatch-generic}|
-% foo.A <- function(x) { "you called foo.A" }|\label{code:dispatch-A}|
-% foo.B <- function(x) { "you called foo.B" }|\label{code:dispatch-B}|
-%
-% q <- 2
-% class(q) <- "A"
-% foo(q) # ==> "you called foo.A"|\label{code:dispatch-call-A}|
-% class(q) <- "B"
-% foo(q) # ==> "you called foo.B"|\label{code:dispatch-call-B}|
-% \end{lstlisting}
-% On line~\ref{code:dispatch-generic} a function \code{foo} is defined to dispatch on the class of parameter \code{x} through \code{UseMethod("foo", x)}, which essentially states that \code{foo.CN} will be called if \code{class(x) == "CN"}.
-% This is evidenced on line~\ref{code:dispatch-call-A}, where \code{foo.A} is called since \code{class(q)} is \code{"A"}, and similarly on line~\ref{code:dispatch-call-B} with \code{q} having changed to class \code{"B"}.
-%
-% % Problems with dispatch
-% Dynamic dispatch, dynamic typing, and the class of values being so fluid contribute heavily to the unpredictability of R code.
-% Any S3 dispatch method (like \code{foo} in the previous code snippet) can be extended with more dispatch targets dynamically by defining new functions at run time (e.g., defining other \code{foo.CN}).
-% \AT{Ugh, reword:} This, combined with the fact that the class of a value is ignored by R unless it is needed, means that the behavior of a function may change unexpectedly as new classes and dispatch targets are introduced.
+\paragraph{Related Work}
+Trace typing~\cite{andreasen2016trace} is an approach for evaluating retrofitted type systems.
+In the trace typing approach, traces of real program executions are collected, and types of variables and expressions occurring in those traces are inferred.
+Then, types are merged and reconciled according to merge strategies specified by the user, corresponding to the desired type relationships in the type system under study.
+Our approach expands on trace typing by incorporating traces obtained by fuzzing in addition to those obtained from existing code, and differs in its focus on typing function parameters, rather than variables and expressions.
 
-\emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable; \AT{in fact, we implemented a version of this technique in R as the baseline for our evaluation}.
-The technique described in the \emph{Randoop} paper generates sequences of method calls to test classes, and randomly generates arguments for these calls in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
-This technique is effective at generating tests involving non-trivial objects that are built up from a number of method calls, but these are uncommon in data science languages.
+There are myriad other fuzzing tools and approaches, e.g., \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable.
+Essentially, sequences of method calls are generated to test classes, and randomly generated arguments for these calls are used in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
+While this technique is effective at generating tests involving non-trivial objects that are built up from a number of method calls, these objects are uncommon in data science languages, where the challenge is generating realistic data.
+\emph{QuickCheck}~\cite{quickcheck} is a tool for Haskell that allows programmers to express program properties that are subject to random fuzz testing.
 
-\AT{Add quickcheck}
 
-\subsection{Test Generation for Dynamic Languages}
 
-Many of the aforementioned techniques rely on static function parameter types in creating values with which to call a function, and dynamic languages do not have static type information.
-For example, \emph{LambdaTester}~\cite{lambdatester} focuses on test generation for higher-order functions in JavaScript; a discovery phase is required to identify which parameters are expected to be callbacks, and all other, non-callback arguments are generated in a similar manner to \emph{Randoop}.
-Further work on \emph{Nessie}~\cite{arteca2022nessie} expanded upon the approach presented in \emph{LambdaTester} to generate tests for asynchronous callbacks using sequencing and nesting.
-Other work on fuzzing deep-learning libraries in Python~\cite{wei2022free} explicitly cite Python being a dynamic language as a challenge for test generation; an important part of the pipeline in the paper is inferring types for function parameters by running existing code.
+% \subsection{Test Generation for Dynamic Languages}
 
-\AT{A few disparate things on Python, Alexi has the links.}
+% Many of the aforementioned techniques rely on static function parameter types in creating values with which to call a function, and dynamic languages do not have static type information.
+% For example, \emph{LambdaTester}~\cite{lambdatester} focuses on test generation for higher-order functions in JavaScript; a discovery phase is required to identify which parameters are expected to be callbacks, and all other, non-callback arguments are generated in a similar manner to \emph{Randoop}.
+% Further work on \emph{Nessie}~\cite{arteca2022nessie} expanded upon the approach presented in \emph{LambdaTester} to generate tests for asynchronous callbacks using sequencing and nesting.
+% Other work on fuzzing deep-learning libraries in Python~\cite{wei2022free} explicitly cite Python being a dynamic language as a challenge for test generation; an important part of the pipeline in the paper is inferring types for function parameters by running existing code.
 
 \section{Fuzzy Trace Typing}
 \label{sec:fuzzy}
