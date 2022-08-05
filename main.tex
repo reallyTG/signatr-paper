@@ -72,24 +72,22 @@ As it happens, TypeScript is the fourth most popular language in the aforementio
 Designing a useful gradual type system for a dynamic language is difficult as dynamism is pervasive in these languages, and describing highly dynamic code statically is fraught.
 For example, the \code{eval} function that executes arbitrary strings as code is frequently used in JavaScript~\cite{richards2011eval}, and reasoning about what that code does ahead-of-time is extremely challenging.
 TypeScript, along with all other gradually typed languages, includes an \code{any} type for these situations, which essentially states that no information about the value is known.
-This \code{any} type is essentially an ``escape hatch'' that lets programmers escape the type system when they want to do something dynamic, and designing a type system that minimizes the need for said escape hatch is desirable; to that end, gradual type system designers should be aware of how the language is used in practice, and e.g. recent work~\cite{turcotte2020designing} reports on a large corpus analysis of R code in an effort to understand how programmers use the language, and authors leverage this information to design a simple type annotation language for R functions.
-\AT{More examples? Maybe trace typing.}
+This \code{any} type is essentially an ``escape hatch'' that lets programmers escape the type system when they want to do something dynamic, and designing a type system that minimizes the need for said escape hatch is desirable; to that end, gradual type system designers should be aware of how the language is used in practice. %, and e.g. recent work~\cite{turcotte2020designing} reports on a large corpus analysis of R code in an effort to understand how programmers use the language, and authors leverage this information to design a simple type annotation language for R functions.
 
 % Beyond accounting for existing code, we must account for other, unexpected inputs.
 % __ as compared with trace typing
 % __ type systems must guard against new inputs
-\AT{I think there's a subtle argument to be made here. 
-It's not enough to look at existing code, because really your type system does two things: a type on a function describes what your function accepts, and, implicitly, \textit{also what it rejects}.
-In that sense, fuzzing can be an important part of inferring a type for something.}
-Focusing on designing type systems that account for existing code is a good start, but inevitably new code will be written that an effective type system must deal with.
-In a sense, static types on function parameters help guard a function against unexpected inputs, and so it is important when evaluating potential type systems to exercise code in unexpected ways. 
-For example, a programmer might not be aware that their code can be exercised in a certain way, and existing code has not fully exercised the function (e.g., perhaps the programmer did not fully test their function).
+% \AT{I think there's a subtle argument to be made here. 
+% It's not enough to look at existing code, because really your type system does two things: a type on a function describes what your function accepts, and, implicitly, \textit{also what it rejects}.}
+% In that sense, fuzzing can be an important part of inferring a type for something.}
+Focusing on designing type systems that account for existing code is a good start, but inevitably new code will be written that the type system must deal with.
+For instance, consider function type signatures: static types on function parameters help guard against unexpected inputs, and so it is important when evaluating potential type systems to exercise code in unexpected ways. 
+A programmer might not be aware that their code can be exercised in a certain way, and existing code may not have fully exercised the function (e.g., perhaps the programmer did not fully test their function).
 
 % Fuzzing to the rescue?
-Fuzzing is a technique wherein functions are called with many inputs to try to find bugs.
-This technique could be leveraged to instead try to find successful calls to a function.
-The resulting approach can be used by type system designers to see how their types match up with possible function use, rather than just intended function use.
-Moreover, it could be used by developers to help infer specifications for their functions, and help them understand how their code behaves in the wild.
+Thankfully, there is an existing technique to automatically exercise code in novel ways: \textit{fuzzing}.
+Fuzzing is a technique wherein functions are called with many inputs to try to find bugs, and this technique could be leveraged to instead try to find successful calls to a function.
+The resulting approach can be used by type system designers to see how their types match up with \textit{possible} function use, rather than just \textit{intended} function use.
 
 % We propose an approach for evaluating type system designs against both existing and new code.
 % __ trace collects existing calls and values
@@ -113,6 +111,26 @@ Using the tool, we generate a value database \TODO{DB stats} and use it to fuzz 
 We find \TODO{result stats}.
 %
 The tool is open source and including the dataset used for this paper, it is available online.
+
+\FK{Typer paper gave us a foundation for an eventual type system for R.
+It was trying to answer the quetions about:
+(1) What expressive power is needed to accurately type R code? 
+(2) Which type system is the R community willing to adopt?
+In this paper we want to move one step closer to the actual type system.
+Some questions:
+(1) Are the traces we used before enough? The reason for this question is that one of the key point of dynamic languages is that they try to "fail" as little as possible - they keep going even if the shape of the data is not exactly what it should be. So the question is what all a function can take and ideally what still makes sense (though this is much harder to get without oracles),
+(2) How polymorphic are the polymorphic functions that we see?
+(3) What should be the type base functions?
+(4) How about S3 dispatch and coertion?
+}
+
+
+\FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
+(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong.
+}
+
+\section{Background and Related Work}
+\label{sec:background}
 
 \paragraph{The R Programming Language}
 
@@ -158,26 +176,6 @@ tooling~\cite{morandat2012evaluating}. The relevant features are the following:
     parameters R functions have.} 
 
 \end{compactitem}
-
-\FK{Typer paper gave us a foundation for an eventual type system for R.
-It was trying to answer the quetions about:
-(1) What expressive power is needed to accurately type R code? 
-(2) Which type system is the R community willing to adopt?
-In this paper we want to move one step closer to the actual type system.
-Some questions:
-(1) Are the traces we used before enough? The reason for this question is that one of the key point of dynamic languages is that they try to "fail" as little as possible - they keep going even if the shape of the data is not exactly what it should be. So the question is what all a function can take and ideally what still makes sense (though this is much harder to get without oracles),
-(2) How polymorphic are the polymorphic functions that we see?
-(3) What should be the type base functions?
-(4) How about S3 dispatch and coertion?
-}
-
-
-\FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
-(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong.
-}
-
-\section{Related Work}
-\label{sec:background}
 
 \FK{The typer paper should be mentioned in introduction so what shall be here? The tracing types paper~\cite{andreasen2016trace}, randoom?, quickcheck?, genthat?}
 
