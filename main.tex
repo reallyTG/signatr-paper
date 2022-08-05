@@ -356,7 +356,57 @@ All reported timing information is \AT{averaged over X runs, with standard devia
 
 \appendix
 
-\section{\tool tutorial}
+\section{\tool demonstration}
+
+The following is a short demo of the basic \tool functionality, \Ie how to create the value database by running R code and then use it to fuzz function type traces.
+We will be using the command line interface but the same is available directly in R and thus directly usable from pipeline frameworks such as targets.
+
+\FK{Once I have it up and running I will split the listings into multiple, fix the new lines and add the description to each of the command.}
+
+\begin{lstlisting}
+$ cat example-1.R
+...
+
+$ cat example-2.R
+...
+
+$ ls example*.R | parallel signatr record --from '{1}' --db '{1.-sxpdb}'
+...
+
+$ ls -l
+...
+
+$ signatr sxpdb-info example-1-sxpdb
+...
+
+$ signatr sxpdb-info example-2-sxpdb
+...
+
+$ signatr sxpdb-merge --output merged-sxpdb example-*-sxpdb
+...
+
+$ signatr sxpdb-info merged-sxpdb
+...
+
+$ signatr fuzz --target "base:::`+`" --db merged-sxpdb --budget 100 --output traces
+...
+
+$ ls -lh fuzz
+...
+
+$ signatr type --traces traces --output types.csv
+...
+
+$ wc -l types.csv
+...
+
+$ head -10 types.csv
+...
+
+$ R -e 'read.csv("type.csv")["signature"] |> unique |> length'
+...
+
+\end{lstlisting}
 
 \end{document}
 \endinput
