@@ -16,7 +16,7 @@
 
 \begin{abstract}
 
-Retrofitting type systems onto dynamic languages can help programmers write more reliable code, as designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
+Retrofitting type systems onto dynamic languages can help programmers write more reliable code, but designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
 A good starting point is to design a system based on existing code, perhaps by leveraging insights from a corpus analysis, or by inferring types from program executions in multiple candidate type system designs.
 That said, existing code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior that an effective type system must account for.
 In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate retrofitted type system designs.
