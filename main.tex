@@ -9,6 +9,8 @@
 
 \input{misc/listing}
 \input{misc/macros}
+\input{code-and-figures/experiment-db.tex}
+\input{code-and-figures/experiment-uf.tex}
 
 \begin{document}
 
@@ -29,26 +31,6 @@ This approach is implemented in a tool called \tool for the R programming langua
 I set up author comments for everyone: \AT{for Alexi}, \PB{for Pierre}, \FK{for
 Filip}, and \JV{for Jan}, oh and \TODO{for TODOs}. Feel free to change the
 colours in {\tt authorcomments.sty}.
-
-\FK{ 
-Plan: 
-- Abstract + Introduction + R background (1.5 page)
-- Approach (2.25 pages)
-    - overview of the approach
-    - details about the components
-    - a figure how it fits together
-        - show the two pipelines in one figure highlighting the individual packages
-- Experiment (1 page)
-    - questions:
-        - Are traces enough?
-        - How polymorphic are polymorphic functions?
-    - setup: machine, corpus size, ...
-    - result: a table with number of type signatures for base arithms and use packages
-- Conclusions (.25 page)
-- Appendix
-  - show code listings from the various steps of the pipeline
-}
-
 
 \section{Introduction}
 \label{sec:introduction}
@@ -129,7 +111,7 @@ Some questions:
 
 
 \FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
-(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong.
+(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong. (5) That we managed to find a non-trivial bug in stringi which is package with large number of reverse dependencies.
 }
 
 \section{Background and Related Work}
@@ -255,7 +237,7 @@ Importantly, the database provides a convenient query API based on this informat
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
 The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
 
-The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++. 
+The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++ with R API (in 4.5K lines of C++ code and 1.5K lines of R code).
 It uses the standard R serialization to serialize R values. 
 The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
 During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
@@ -288,28 +270,53 @@ For example, say the identity function {\tt id} was called with {\tt 2} and {\tt
 
 The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
 
-\section{Experiments}
-\label{sec:experiments}
-
-\paragraph{Setup} 
-We ran all of our experiments on a Ubuntu 18.04.6 server with 72 cores and 256GB of RAM.
-All reported timing information is \AT{averaged over X runs, with standard deviations reported; timed experiments were conducted on a quiet server with few other processes running to minimize interference.}
-
-\paragraph{Design}
-\begin{itemize}
-    \item We ran \tool on the \TODO{Y} \AT{exported?} functions from \TODO{X} packages.
-    \item Recall the general approach of \tool: for a given package function $f$, we first consult the database for the pre-existing calls to $f$, and take the arguments of those calls as seeds for the fuzzer; then, our test generator iteratively generates new inputs by querying the database for values based on the initial seed.
-    \item We compare the signatures generated by this process to the signatures corresponding to the pre-existing calls.
-\end{itemize}
-
-\paragraph{Results}
-
 \subsection{Threats to Validity}
 
-\begin{itemize}
-    \item \ldots our selection of projects and functions may not be representative \ldots
-    \item \AT{others?}
-\end{itemize}
+
+\FK{If we decide to keep this then here we should probably discuss the possible problems with fuzzing.}
+
+\section{Assessment}
+\label{sec:assessment}
+
+To assess the usefulness of \tool we did two experiments to answer the following two questions:
+\begin{inparaenum}[(1)]
+    \item how many call signatures for user defined functions the fuzzing generates in addition to to trace typing?
+    \item how polymorphic are the common functions from the R standard library such as \code{+,-,*,/}?
+\end{inparaenum}
+We ran all of our experiments on Intel Xeon 6140, 2.30GHz with 72 cores and 256GB of RAM running Ubuntu 18.04.
+
+\subsection{Fuzzing user functions}
+
+We base the experiment on the same corpus as we used in the \typer paper (412 packages, 17.4K public functions).
+First, we created a \sxpdb for the fuzzer.
+For this we used the extracted runnable code from the corpus packages which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
+Generating the database took \TODO{XXX - @pierre} and takes \DBFileSize of disk space.
+It contains \DBValuesRnd unique values recorded from \TODO{XXX - @pierre} calls to \DBNumFunctionsRnd functions from \DBNumPackages packages.
+\FK{info about value distribution?}
+
+With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus.
+Each function was run \UFTracingBudget times, taking it 36 hours while fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
+
+In total we made \UFNumTracesRnd calls out of which \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+
+% how often R crashed
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{code-and-figures/uf-call-signatures.pdf}
+    \caption{
+        Number of call signatures obtained by fuzzing in addition to tracing. Each line represents one function.
+        \FK{an alternative would be to show proportionally how many out of all sigantures come from fuzzing / traing - no need for log scale then}
+    }\label{fig:sxpdb-pipeline}
+\end{figure}
+
+\subsection{Fuzzing stdlib}
+
+%
+It took 6 hours with all functions fuzzed in parallel.
+
+
+% a table with function and number of type signatres
 
 \section{Conclusions}
 \label{sec:conclusions}
