@@ -16,10 +16,10 @@
 
 \begin{abstract}
 
-Retrofitting type systems onto dynamic languages can help programmers write more reliable code.
-That said, designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky.
-\AT{Leveraging existing code is a good start, but falls short.}
-To aid in the design of these retrofitted type systems, we propose an approach that uses fuzzing to obtain new program traces that can stress-test candidate type system designs.
+Retrofitting type systems onto dynamic languages can help programmers write more reliable code, as designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
+A good starting point is to design a system based on existing code, perhaps by leveraging insights from a corpus analysis, or by inferring types from program executions in multiple candidate type system designs.
+That said, existing code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior that an effective type system must account for.
+In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate retrofitted type system designs.
 This approach is implemented in a tool called \tool for the R programming language, and this paper demonstrates \AT{\ldots}
 
 \end{abstract}
@@ -137,6 +137,8 @@ Some questions:
 
 \paragraph{The R Programming Language}
 
+\AT{I think we could shorten this a lot.
+Let's revisit once we know how much background we need to make sense of the evaluation.}
 This paper presents an approach expanding upon trace typing, and implements this approach in a tool called \tool for the R programming language. 
 R sports an unusual mix of language features making it a challenging target for
 tooling~\cite{morandat2012evaluating}. 
@@ -290,7 +292,7 @@ The fuzzing approach is implemented in a tool called \tool, written in R and C++
 \label{sec:experiments}
 
 \paragraph{Setup} 
-We ran all of our experiments on a \AT{prl3 server specs}.
+We ran all of our experiments on a Ubuntu 18.04.6 server with 72 cores and 256GB of RAM.
 All reported timing information is \AT{averaged over X runs, with standard deviations reported; timed experiments were conducted on a quiet server with few other processes running to minimize interference.}
 
 \paragraph{Design}
