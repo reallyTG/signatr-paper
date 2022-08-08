@@ -281,11 +281,9 @@ The fuzzing approach is implemented in a tool called \tool, written in R and C++
 \section{Assessment}
 \label{sec:assessment}
 
-To assess the usefulness of \tool we did two experiments to answer the following two questions:
-\begin{inparaenum}[(1)]
-    \item how many call signatures for user defined functions the fuzzing generates in addition to to trace typing?
-    \item how polymorphic are the common functions from the R standard library such as \code{+,-,*,/}?
-\end{inparaenum}
+The main motivation for building \tool was to have a tool that can generate successful calls to R functions, \emph{in addition} to what we can record by running the available executable code from R packages.
+Therefore, to assess the usefulness of \tool we need to answer \emph{how many additional successful calls can \tool generates?}.
+
 We ran all of our experiments on Intel Xeon 6140, 2.30GHz with 72 cores and 256GB of RAM running Ubuntu 18.04.
 
 \subsection{Fuzzing user functions}
@@ -300,7 +298,11 @@ It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DB
 With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus.
 Each function was run \UFTracingBudget times, taking it 36 hours while fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
 
-In total we made \UFNumTracesRnd calls out of which \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+In total we made \UFNumTracesRnd calls (\UFTracesSize of traces and \UFTracesReturnDbsSize). Out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cases, R processed crashed.
+
+\FK{Report the stringi bug that was fixed}
+
 
 
 
