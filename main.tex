@@ -25,7 +25,7 @@ Another option is to use fuzzers to generate new inputs.
 However, fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
-% Unlike traditional use of fuzzing,\Ie to discover bugs and preformance patologies, our aim to find new successfull function invocation that can extend the scope of a program analysis.
+Unlike traditional use of fuzzing,\Ie to discover bugs and preformance patologies, our aim to find new successfull function invocation that can extend the scope of a program analysis.
 We implement this approach in a tool called \tool for the R programming language.
 We present the insights of its design and implementation, and report on an application in the context of language design.
 Concertely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
