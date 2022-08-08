@@ -18,11 +18,14 @@
 
 \begin{abstract}
 
-Retrofitting type systems onto dynamic languages can help programmers write more reliable code, but designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
-A good starting point is to design a system based on existing code, perhaps by leveraging insights from a corpus analysis, or by inferring types from program executions in multiple candidate type system designs.
+Retrofitting type systems onto dynamic languages can help programmers write more reliable code.
+However, designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
+A good starting point is to design a system based on existing code, inferring types from program executions traces.
 That said, existing code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior that an effective type system must account for.
-In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate retrofitted type system designs.
-This approach is implemented in a tool called \tool for the R programming language, and this paper demonstrates \AT{\ldots}
+In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate type system designs.
+We implemented this approach in a tool called \tool for the R programming language.
+We use feedback-driven blackbox fuzzing where the input comes from a database of values that was generated from a large corpus of existing R code (\DBValuesRnd unique values from \DBSourceLinesOfCodeRnd lines of R code).
+We present the insights of its design and implementation, and report on an experiment where we fuzzed \UFNumFunctions R functions generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio) more unique call signatures over just using program execution traces.
 
 \end{abstract}
 
