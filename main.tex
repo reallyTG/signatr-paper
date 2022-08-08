@@ -18,14 +18,14 @@
 
 \begin{abstract}
 
-Retrofitting type systems onto dynamic languages can help programmers write more reliable code.
-However, designing a type system that accurately captures the semantics of the language while being usable and useful to programmers can be tricky, as the balance between expressiveness and complexity is elusive.
-A good starting point is to design a system based on existing code, inferring types from program executions traces.
-That said, existing code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior that an effective type system must account for.
-In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate type system designs.
-We implemented this approach in a tool called \tool for the R programming language.
-We use feedback-driven blackbox fuzzing where the input comes from a database of values that was generated from a large corpus of existing R code (\DBValuesRnd unique values from \DBSourceLinesOfCodeRnd lines of R code).
-We present the insights of its design and implementation, and report on an experiment where we fuzzed \UFNumFunctions R functions generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures over just using program execution traces.
+Fuzzers are automated tools that test functions by generating novel inputs, calling the function with the inputs, and observing their behavior.
+There exist myriad fuzzing tools for many programming languages, and they have been used to uncover novel bugs in various application domains.
+That said, fuzzing in the context of \textit{dynamic} languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
+In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values observed by running a large corpus of existing code; we implement this approach in a tool called \tool for the R programming language.
+% The database backing \tool is comprised of \DBValuesRnd unique values obtained from \DBSourceLinesOfCodeRnd lines of R code. % <-- Not sure that we need this.
+
+As an application of this technique in the context of language design, we stress-test one of the proposed type system designs for R, which was inspired by a corpus analysis of R code.
+As an argument in favor of their design, authors present types inferred from running R code, and this paper reports on an experiment where \tool was run on \UFNumFunctions R functions, generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures than were obtained from running existing code alone.
 
 \end{abstract}
 
