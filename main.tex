@@ -18,18 +18,16 @@
 
 \begin{abstract}
 
-Dynamic program analysis it is often the only way to analyse programs written in dynamic programming languages as their behavior makes static analysis loose its imprecision to the point is becomes useless.
-Dynamic analysis however requires both a code and its input.
-Some input can obtained from existing code such as tests or examples, however, such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
-Another option is to use fuzzers to generate new inputs.
-However, fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
+Dynamic program analysis is often the only way to precisely analyse code written in dynamic programming languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
+Dynamic analysis, however, requires both code to run and valid inputs for said code; while some inputs can gleaned from existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool to generate random inputs for functions, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
-Unlike traditional use of fuzzing,\Ie to discover bugs and preformance patologies, our aim to find new successfull function invocation that can extend the scope of a program analysis.
+Unlike traditional use of fuzzing, \Ie, to discover bugs and performance pathologies, our aim to find new \textit{successful} function invocation that can extend the scope of a program analysis.
 We implement this approach in a tool called \tool for the R programming language.
 We present the insights of its design and implementation, and report on an application in the context of language design.
-Concertely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
-Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures in comaprison to the original study.
+Concretely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
+Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures in comparison to the original study.
 
 \end{abstract}
 
