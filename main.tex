@@ -25,7 +25,7 @@ That said, existing code paints an incomplete picture as the permissive semantic
 In this work, we propose an approach that uses fuzzing to obtain new, unexpected program traces to stress-test candidate type system designs.
 We implemented this approach in a tool called \tool for the R programming language.
 We use feedback-driven blackbox fuzzing where the input comes from a database of values that was generated from a large corpus of existing R code (\DBValuesRnd unique values from \DBSourceLinesOfCodeRnd lines of R code).
-We present the insights of its design and implementation, and report on an experiment where we fuzzed \UFNumFunctions R functions generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio) more unique call signatures over just using program execution traces.
+We present the insights of its design and implementation, and report on an experiment where we fuzzed \UFNumFunctions R functions generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures over just using program execution traces.
 
 \end{abstract}
 
@@ -294,13 +294,15 @@ We base the experiment on the same corpus as we used in the \typer paper (412 pa
 First, we created a \sxpdb for the fuzzer.
 For this we used the extracted runnable code from the corpus packages which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
 Generating the database took \TODO{XXX - @pierre} and takes \DBFileSize of disk space.
-It contains \DBValuesRnd unique values recorded from \TODO{XXX - @pierre} calls to \DBNumFunctionsRnd functions from \DBNumPackages packages.
-\FK{info about value distribution?}
+It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DBNumFunctionsRnd functions in \DBNumPackages packages.
+\FK{Info about value distribution? A pie chart?}
 
 With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus.
 Each function was run \UFTracingBudget times, taking it 36 hours while fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
 
 In total we made \UFNumTracesRnd calls out of which \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+
+
 
 % how often R crashed
 
