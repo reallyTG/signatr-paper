@@ -19,7 +19,7 @@
 \begin{abstract}
 
 Dynamic program analysis is often the only way to precisely analyse code written in dynamic programming languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
-Dynamic analysis, however, requires both code to run and valid inputs for said code; while some inputs can gleaned from existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
 To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool to generate random inputs for functions, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
