@@ -18,14 +18,18 @@
 
 \begin{abstract}
 
-Fuzzers are automated tools that test functions by generating novel inputs, calling the function with the inputs, and observing their behavior.
-There exist myriad fuzzing tools for many programming languages, and they have been used to uncover novel bugs in various application domains.
-That said, fuzzing in the context of \textit{dynamic} languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
-In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values observed by running a large corpus of existing code; we implement this approach in a tool called \tool for the R programming language.
-% The database backing \tool is comprised of \DBValuesRnd unique values obtained from \DBSourceLinesOfCodeRnd lines of R code. % <-- Not sure that we need this.
+Dynamic program analysis it is often the only way to analyse programs written in dynamic programming languages as their behavior makes static analysis loose its imprecision to the point is becomes useless.
+Dynamic analysis however requires both a code and its input.
+Some input can obtained from existing code such as tests or examples, however, such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+Another option is to use fuzzers to generate new inputs.
+However, fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
-As an application of this technique in the context of language design, we stress-test one of the proposed type system designs for R, which was inspired by a corpus analysis of R code.
-As an argument in favor of their design, authors present function types inferred from running R code, and this paper reports on an experiment where \tool was run on \UFNumFunctions of those functions R functions, generating \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures than were obtained from running existing code alone.
+In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
+% Unlike traditional use of fuzzing,\Ie to discover bugs and preformance patologies, our aim to find new successfull function invocation that can extend the scope of a program analysis.
+We implement this approach in a tool called \tool for the R programming language.
+We present the insights of its design and implementation, and report on an application in the context of language design.
+Concertely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
+Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures in comaprison to the original study.
 
 \end{abstract}
 
