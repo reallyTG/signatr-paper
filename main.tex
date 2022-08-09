@@ -76,24 +76,6 @@ In summary, the contributions of this paper are:
 % %
 The tool is open source and is available online alongside the data set used for this paper.
 
-
-\FK{Typer paper gave us a foundation for an eventual type system for R.
-It was trying to answer the quetions about:
-(1) What expressive power is needed to accurately type R code? 
-(2) Which type system is the R community willing to adopt?
-In this paper we want to move one step closer to the actual type system.
-Some questions:
-(1) Are the traces we used before enough? The reason for this question is that one of the key point of dynamic languages is that they try to "fail" as little as possible - they keep going even if the shape of the data is not exactly what it should be. So the question is what all a function can take and ideally what still makes sense (though this is much harder to get without oracles),
-(2) How polymorphic are the polymorphic functions that we see?
-(3) What should be the type base functions?
-(4) How about S3 dispatch and coertion?
-}
-
-
-\FK{Few things to mention (random notes): (1) we are looking at type systems for users (not machines), e.g. a user would likely prefer an arrow of union while a compiler would do better with a union of arrows.
-(2) R is somewhat different from Python and JS in the way that it lacks any sort of modules (modulo S4,...). In JS/Python we have classes and objects in the OOP style - that is not what we have in R - or at least not in the same sense. The S3 generics are tricky because they encapsulate too many different objects - it is really an adhoc polymorphims, much like operation overloading. (4) This is second paper in the series of papers whose goal is to design a type system for R. In the first one we used the trace-typing technique to gather data that can be fed into the design process. This one goes one step further and extend the search space to get more accurate function specification. (3) Inferring subtyping is hard - example with data.frame / tibble how one can get it wrong. (5) That we managed to find a non-trivial bug in stringi which is package with large number of reverse dependencies.
-}
-
 \section{Background and Related Work}
 \label{sec:background}
 
@@ -166,32 +148,56 @@ While this technique is effective at generating tests involving non-trivial obje
 % Further work on \emph{Nessie}~\cite{arteca2022nessie} expanded upon the approach presented in \emph{LambdaTester} to generate tests for asynchronous callbacks using sequencing and nesting.
 % Other work on fuzzing deep-learning libraries in Python~\cite{wei2022free} explicitly cite Python being a dynamic language as a challenge for test generation; an important part of the pipeline in the paper is inferring types for function parameters by running existing code.
 
-\section{Fuzzy Trace Typing}
+\section{Approach}
 \label{sec:fuzzy}
 
-In this section, we will present our approach to evaluating type system designs through fuzzing.
-The approach is pictured in the diagrams in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline}:
-Fig.~\ref{fig:sxpdb-pipeline} illustrates how we obtain a database of real R values by tracing program executions (called {\tt sxpdb}), while Fig.~\ref{fig:fuzz-pipeline} illustrates how this database is leveraged by the fuzzer.
+In this section, we describe the design and implementation of the \tool fuzzer.
+At the end, in the Appendix~\ref{sec:demo}, we show an example how to use it.
 
-% \begin{itemize}
-%     \item We built a tracer and ran it on a bunch of R code, observing values and their origins. 
-%     %
-%     \item The information obtained via tracing is collected in a database equipped with a rich query API. 
-%     The origins of values can be used reconstruct the calls (in the same manner as previous work~\cite{turcotte2020designing}), and the database of values can be queried to find other potential inputs to functions.
-%     %
-%     \item We developed a fuzzer called \tool that takes advantage of this database to construct additional calls with \textit{realistic data} to further exercise functions.
-%     %
-%     \item Finally, a data analysis pipeline processes the output of the fuzzer to prepare static type signatures for fuzzed functions.
-% \end{itemize}
+\subsection{Overview}
+
+The tool provides two main operations:
+%
+\begin{inparaenum}[(1)]
+\item \emph{recording}, where it runs R code and records each function invocation into the value database (\sxpdb), and
+\item \emph{fuzzing}, where it uses the recorded values to generate input into R functions. 
+\end{inparaenum}
+%
+The tool is meant to be run as a part of a data pipeline that analyzes a corpus of code.
+This is pictured in the diagrams in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline} for the recording and fuzzing modes respectively.
+
+First, we extract the runnable code from R packages (snippets of examples from documentation and tests) into R scripts.
+Next, in parallel, we run the scripts, recording all unique function parameters into \sxpdb.
+Finally, we merge all the \sxpdb into one while discarding duplicates.
+We use R OpenSci targets~\cite{landau2021_targets} for orchestration, but any generic batch scheduler will do as well.
+
+Once we have the value database, we can start fuzzing.
+The fuzzer is parameterized by the concrete dynamic analysis we are interested in.
+There are two main hooks: before a function is called allowing one to preprocess the input, and after the function is done executing allowing one to process the output or error depending whether the call was successful or not.
+The after-invocation hook can also provide feedback to the fuzzer, currently we support signalling success or failure.
+In dynamic analysis, we are often interested in much finer information about the function execution than simply start and end.
+For example, for the call signature inference use case, we would like to know if any of the function arguments was coerced to another type or if there was a method dispatch on it.
+This is supported via instrumentation.
+The fuzzer runs the functions using \emph{R-dyntrace}, an extended R virtual machine that supports attaching callbacks to various runtime events~\cite{goel2019}.
+The dynamic analysis can therefore use one of the 40 runtime events to get the necessary insights (including dispatch and coercion).
+
+A natural way is to run one instance of fuzzer per target function.
+Each instance consists of two processes.
+The reason is that R could crash (and it does, \Cf Section~\ref{sec:assessment}) and we do not want to loose the partial results.
+Therefore we have one worker doing the fuzzing and another supervising re-spawning the worker when it dies.
+Furthermore, we run the fuzzing isolated in a container as "random" values goes into real code which could have dare consequences.
+
+The tool consists of three standalone components: \code{argtracer} the tracer responsible for running the R code and recoding function invocation, \code{sxpdb} the value database, and \code{generatr} the fuzzer responsible for generating inputs.
+Technically, they are R packages written in combination of R and C++.
 
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{code-and-figures/sxdb-pipeline.pdf}
     \caption{
-    Database creation pipeline.
-    Runnable code snippets are extracted from an input list of R packages.
-    These snippets are fed in parallel to the {\tt sxpdb-create} part of \tool, which picks out values and metadata related to them (e.g., the origin of the value). 
-    This creates a number of disparate databases that are merged into one database, which is referred to as the {\tt sxpdb}.
+    Recording pipeline.
+    % Runnable code snippets are extracted from an input list of R packages.
+    % These snippets are fed in parallel to the {\tt sxpdb-create} part of \tool, which picks out values and metadata related to them (e.g., the origin of the value). 
+    % This creates a number of disparate databases that are merged into one database, which is referred to as the {\tt sxpdb}.
     }\label{fig:sxpdb-pipeline}
 \end{figure}
 
@@ -200,14 +206,29 @@ Fig.~\ref{fig:sxpdb-pipeline} illustrates how we obtain a database of real R val
     \includegraphics[width=\columnwidth]{code-and-figures/fuzz-pipeline.pdf}
     \caption{
     Fuzzing pipeline.
-    The {\tt sxpdb}, along with a list of R functions to fuzz, is input to the fuzzing phase of \tool.
-    The fuzzing phase fuzzes each of the functions w.r.t. the {\tt sxpdb}, which results in a collection of execution traces; these execution traces are fed to the typing phase of \tool, which infers types for arguments and outputs a list of unique call signatures.
+    % The {\tt sxpdb}, along with a list of R functions to fuzz, is input to the fuzzing phase of \tool.
+    % The fuzzing phase fuzzes each of the functions w.r.t. the {\tt sxpdb}, which results in a collection of execution traces; these execution traces are fed to the typing phase of \tool, which infers types for arguments and outputs a list of unique call signatures.
     }\label{fig:fuzz-pipeline}
 \end{figure}
 
 \subsection{Tracer}
 
-\AT{Quickly talk about the tracer.}
+The tracer is built on top of \emph{R-dyntrace}.
+The two main runtime events we use are a function exit and a context jump.
+The former one is where we capture all the evaluated arguments and pass them to \sxpdb.
+The latter one is necessary to keep our call stack in balance.
+The R interpreter uses long jumps for loops control flow, return statements and error handling.
+In the case of long jump, the exit hook is ignored, to make sure, we do not loose any function exit, we maintain our version of R call stack.
+
+When we see a call, we only get a pointer to R closure.
+The function name and the package that contains it can only be found by looking at the currently loaded namespaces and the symbols they contain.
+Because of this, we eagerly build an index of package and function names when we see a call to load namespace function (package loading in implemented in R).
+The fact that R is implemented in a mixture of R and C requires that we maintain a black list of R calls that are connected to R internals.
+Overall, we ignore 70 functions that are used for namespace loading and manipulation, and reflection.
+
+The tracer is written in 600 lines of C++ code.
+
+\FK{Add information about the overhead}
 
 \subsection{Database of Values}
 
@@ -291,7 +312,7 @@ The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cas
     \caption{
         Number of call signatures obtained by fuzzing in addition to tracing. Each line represents one function.
         \FK{an alternative would be to show proportionally how many out of all sigantures come from fuzzing / traing - no need for log scale then}
-    }\label{fig:sxpdb-pipeline}
+    }\label{fig:call-signatures}
 \end{figure}
 
 \subsection{Fuzzing stdlib}
@@ -313,7 +334,7 @@ It took 6 hours with all functions fuzzed in parallel.
 
 \appendix
 
-\section{\tool demonstration}
+\section{\tool demonstration}\label{sec:demo}
 
 The following is a short demo of the basic \tool functionality, \Ie how to create the value database by running R code and then use it to fuzz function type traces.
 We will be using the command line interface but the same is available directly in R and thus directly usable from pipeline frameworks such as targets.
