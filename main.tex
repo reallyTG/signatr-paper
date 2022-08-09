@@ -11,6 +11,7 @@
 \input{misc/macros}
 \input{code-and-figures/experiment-db.tex}
 \input{code-and-figures/experiment-uf.tex}
+\input{code-and-figures/experiment-tracer.tex}
 
 \begin{document}
 
@@ -223,10 +224,9 @@ Because of this, we eagerly build an index of package and function names when we
 The fact that R is implemented in a mixture of R and C requires that we maintain a black list of R calls that are connected to R internals.
 Overall, we ignore 70 functions that are used for namespace loading and manipulation, and reflection.
 
-On average, there is 7x slowdown when running the R code with tracing enabled. The main cost comes from value serialization (\Cf Section~\ref{sec:sxpdb}).
+Regarding performance, there is \TRMinTracingOverhead --- \TRMaxTracingOverhead (\TRAvgTracingOverhead on average) slowdown when running the R code with tracing enabled (based on the running / tracing \TRTracingFiles R scripts recording 8.2M unique values of 3.2GB size).
+The main cost comes from value serialization (\Cf Section~\ref{sec:sxpdb}).
 The tracer is written in 600 lines of C++ code.
-
-\FK{Add information about the overhead}
 
 \subsection{Database of Values}\label{sec:sxpdb}
 
