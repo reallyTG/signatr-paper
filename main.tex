@@ -208,7 +208,7 @@ Technically, they are R packages written in combination of R and C++.
     }\label{fig:fuzz-pipeline}
 \end{figure}
 
-\subsection{Tracer}
+\subsection{Tracer}\label{sec:argtracer}
 
 The tracer is built on top of \emph{R-dyntrace}.
 The two main runtime events we use are a function exit and a context jump.
@@ -223,22 +223,44 @@ Because of this, we eagerly build an index of package and function names when we
 The fact that R is implemented in a mixture of R and C requires that we maintain a black list of R calls that are connected to R internals.
 Overall, we ignore 70 functions that are used for namespace loading and manipulation, and reflection.
 
+On average, there is 7x slowdown when running the R code with tracing enabled. The main cost comes from value serialization (\Cf Section~\ref{sec:sxpdb}).
 The tracer is written in 600 lines of C++ code.
 
 \FK{Add information about the overhead}
 
-\subsection{Database of Values}
+\subsection{Database of Values}\label{sec:sxpdb}
 
-The huge amount of R values we have observed during tracing are stored in a custom-written database. 
-The values are serialized, along with their \textit{origin} (defined as which package and function are they from, and whether they are an argument or return value) and some information about the value. % such as its {\tt typeof}-type and the number of times it was seen. 
-Importantly, the database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, \AT{list all}, and length of the value. 
+To store recorded R values we developed a our own database.
+The reason was two-fold: (1) we can leverage some domain-knowledge of R values and store them efficiently, (2) we can optimize it for the type of queries that the fuzzer does.
+It is implemented in C++ with R API (in 4.5K lines of C++ code and 1.5K lines of R code).
+
+\paragraph{Storage}
+
+The database stores only unique values.
+We use XXH128, a 128bit hashing algorithm\footnote{fast non-cryptographic hash algorithm, \Cf \url{https://cyan4973.github.io/xxHash/}} for uniqueness.
+While the hashing is fast, it works on an array of bytes so we need to lower R values into a binary format.
+R provides a binary serialization format XDR\footnote{\Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Serialization-Formats}}, but it is costly.
+Since there is a large number of values being pushed to the database in an average recording session, we try to avoid the serialization as much as possible.
+For this we use the \emph{trace} bit that is part of the R value header\footnote{A bit in the \code{SEXP} C struct that represents R value. \Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Rest-of-header}}.
+If it is not set, then it is a fresh value so we serialize it, compute its hash, store it into the database and set the trace bit.
+If it is set, we have seen the value before, however, despite that R implements a copy-on-write semantics, until a value is aliased, it can be modified in place.
+Therefore, we need to check whether is has been shared and if it has not, we have to serialize it and check its presence using the hash.
+
+\FK{Some info about how the data layout?}
+
+Next to the value itself, the database also store metadata about the value and its origin (the package, function and argument name).
+We also store a unique call ids for each sequence of argument values coming from the same call.
+This way we can reproduce the calls that were recorded by the tracer.
+
+Currently, the database supports all R values except for environments, closures and external pointers.
+
+\paragraph{Queries}
+
+The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, \AT{list all}, and length of the value.
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
 The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
 
-The value database\footnote{\url{https://github.com/PRL-PRG/sxpdb/} \PB{not anonymous.} \AT{maybe we can make a code artifact?}} is implemented in C++ with R API (in 4.5K lines of C++ code and 1.5K lines of R code).
-It uses the standard R serialization to serialize R values. 
-The serialized values are hashed with a quick 128-bit hash \footnote{\url{https://cyan4973.github.io/xxHash/}}. 
-During tracing, one small database is generated per file, and all the small databases are then merged together; this makes it possible to parallelize the tracing phase.
+\FK{More info, but I'm not familiar with this}
 
 \subsection{Fuzzing Technique \AT{WIP DRAFT}}
 
@@ -281,8 +303,6 @@ Therefore, to assess the usefulness of \tool we need to answer \emph{how many ad
 
 We ran all of our experiments on Intel Xeon 6140, 2.30GHz with 72 cores and 256GB of RAM running Ubuntu 18.04.
 
-\subsection{Fuzzing user functions}
-
 We base the experiment on the same corpus as we used in the \typer paper (412 packages, 17.4K public functions).
 First, we created a \sxpdb for the fuzzer.
 For this we used the extracted runnable code from the corpus packages which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
@@ -311,14 +331,6 @@ The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cas
         \FK{an alternative would be to show proportionally how many out of all sigantures come from fuzzing / traing - no need for log scale then}
     }\label{fig:call-signatures}
 \end{figure}
-
-\subsection{Fuzzing stdlib}
-
-%
-It took 6 hours with all functions fuzzed in parallel.
-
-
-% a table with function and number of type signatres
 
 \section{Conclusions}
 \label{sec:conclusions}
