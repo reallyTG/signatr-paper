@@ -79,66 +79,63 @@ The tool is open source and is available online alongside the data set used for 
 \section{Background and Related Work}
 \label{sec:background}
 
-\paragraph{The R Programming Language}
-
-\AT{I think we could shorten this a lot.
-Let's revisit once we know how much background we need to make sense of the evaluation.}
-This paper presents an approach expanding upon trace typing, and implements this approach in a tool called \tool for the R programming language. 
-R sports an unusual mix of language features making it a challenging target for
-tooling~\cite{morandat2012evaluating}. 
-The relevant features are the following:
-
-\begin{compactitem}[$-$]
-
-\item R does not have type annotations or a static type system. This means
-    there is nothing to suggest what the expected arguments or return values of
-    a function could be, and thus there is little to guide test generation.
-
-\item Most values are vectors or lists. Values can be annotated by key-value
-    pairs called attributes. These annotations, coupled with reflection, are
-    the basic building blocks for many advanced features of R. For example, the
-    S3 dynamic dispatch mechanism (in fact R has multiple different object
-    systems but S3 is the most widespread one) is based on these attributes. An
-    R object is simply a value with \code{class} attribute denoting the class
-    the object is \texttt{instance-of}.
-
-\item Built-in types are automatically and silently coerced from more specific
-    types to more general types when deemed appropriate. There are no global
-    coertion rules, instead, each function does the coertion of its parameters
-    as it finds it fit.
-
-\item All expressions are evaluated by-need, thus the call \code{f(a+b)}
-    contains three delayed sub-expressions, one for each variable and one for
-    the call to plus. This means that R does not pass values to functions but
-    rather passes unevaluated promises (the order of evaluation of promises is
-    part of the semantics as they can have side effects). These promises can
-    also be turned back into code by reflection.
-
-\item R has a copy-on-write semantics for shared values. A value is shared if
-    it is accessible from more than one variable. This means that side effects
-    that change shared values are rare. This gives a functional flavor to large
-    parts of R.
-
-\item The primary abstraction in R is a function. Functions are grouped into
-    packages that can be imported. A function can be generic, allowing an
-    object-oriented style of programming. \TODO{Some stats about how many
-    parameters R functions have.} 
-
-\end{compactitem}
-
-\FK{The typer paper should be mentioned in introduction so what shall be here? The tracing types paper~\cite{andreasen2016trace}, randoom?, quickcheck?, genthat?}
-
 \paragraph{Related Work}
-Trace typing~\cite{andreasen2016trace} is an approach for evaluating retrofitted type systems.
-In the trace typing approach, traces of real program executions are collected, and types of variables and expressions occurring in those traces are inferred.
-Then, types are merged and reconciled according to merge strategies specified by the user, corresponding to the desired type relationships in the type system under study.
-Our approach expands on trace typing by incorporating traces obtained by fuzzing in addition to those obtained from existing code, and differs in its focus on typing function parameters, rather than variables and expressions.
 
-There are myriad other fuzzing tools and approaches, e.g., \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable.
+There are myriad fuzzing tools and approaches, e.g., \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable.
 Essentially, sequences of method calls are generated to test classes, and randomly generated arguments for these calls are used in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
 While this technique is effective at generating tests involving non-trivial objects that are built up from a number of method calls, these objects are uncommon in data science languages, where the challenge is generating realistic data.
 \emph{QuickCheck}~\cite{quickcheck} is a tool for Haskell that allows programmers to express program properties that are subject to random fuzz testing.
+American Fuzzy Lop (AFL)~\cite{afl} is a state-of-the-art industrial fuzzer; AFL takes a program and one example file as input, calls the program with the input, and then uses a variety of heuristics to transform the input and fuzz the program.
+\AT{Do we want to say:} In this work, we propose an approach to fuzzing where no input is required from the programmer, and automatically discovers how the function or program under study should be called.
 
+\paragraph{The R Programming Language}
+
+We will present a fuzzing tool called \tool for the R programming language.
+R sports an unusual mix of language features making it a challenging target for
+tooling~\cite{morandat2012evaluating}. 
+Some major challenges include:
+
+\begin{compactitem}[$-$]
+
+\item R does not have type annotations or a static type system, so there is very little to suggest what are expected arguments or return values.
+% This means there is nothing to suggest what the expected arguments or return values of a function could be, and thus there is little to guide test generation.
+
+\item Most values are vectors or lists, and can be annotated by key-value pairs called \textit{attributes}. 
+These annotations, coupled with reflection, are the basic building blocks for many advanced features of R. 
+For example, the S3 dynamic dispatch mechanism is based on the class attribute of a value.
+(In fact, R has multiple different object systems but S3 is the most widespread one.)
+An R object is simply a value with \code{class} attribute denoting its classes as a vector of character strings (values often have multiple classes).
+
+\item Built-in types are automatically and silently coerced from more specific types to more general types, and each function coerces its parameters as it sees fit.
+
+% I don't think we need promises.
+% \item All expressions are evaluated by-need, thus the call \code{f(a+b)}
+%     contains three delayed sub-expressions, one for each variable and one for
+%     the call to plus. This means that R does not pass values to functions but
+%     rather passes unevaluated promises (the order of evaluation of promises is
+%     part of the semantics as they can have side effects). These promises can
+%     also be turned back into code by reflection.
+
+% \item R has a copy-on-write semantics for shared values. A value is shared if
+%     it is accessible from more than one variable. This means that side effects
+%     that change shared values are rare. This gives a functional flavor to large
+%     parts of R.
+
+% \item The primary abstraction in R is a function. Functions are grouped into
+%     packages that can be imported. A function can be generic, allowing an
+%     object-oriented style of programming. \TODO{Some stats about how many
+%     parameters R functions have.} 
+
+\end{compactitem}
+
+% R ecosystem stuff.
+The primary abstraction in R is a function, and functions are grouped into packages that can be imported. 
+A function can be generic, allowing an object-oriented style of programming. \TODO{Some stats about how many parameters R functions have.}
+
+% Types for R.
+There has been some effort to develop a static type system for R.
+Turcotte et al.~\cite{turcotte2020designing} proposed a simple type annotation language for types at the level of functions, inspiring themselves from a corpus analysis of 400 R packages.
+As part of our assessment of \tool, we will run it on the functions in this corpus to demonstrate the many novel and unexpected ways functions can be called.
 
 
 % \subsection{Test Generation for Dynamic Languages}
