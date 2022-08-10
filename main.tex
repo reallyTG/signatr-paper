@@ -19,16 +19,35 @@
 
 \begin{abstract}
 
-Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
-Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
-To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool to generate random inputs for functions, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
+Dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages due to their permissive semantics. 
+That said, dynamic analysis is not without its limitations, as quality executable code is needed for the analysis to run.
+Besides existing code, which can paint an incomplete picture of how code can be run, one could use a fuzzer to generate yet more runnable code, but the shape of user-defined data is difficult to glean statically which limits a fuzzer's ability to generate realistic inputs.
 
-In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
-Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of a program analysis.
+% The permissive semantics of dynamic languages complicates the design and implementation of static tooling for these languages.
+% Because of this, dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages, but dynamic analysis is not without its limitations, as quality executable code is needed for the analysis to run.
+% Besides existing code, which can paint an incomplete picture of how code can be run, one could use a fuzzer to generate yet more runnable code, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
+
+In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code.
+Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
 We implement this approach in a tool called \tool for the R programming language.
-We present the insights of its design and implementation, and report on an application in the context of language design.
-Concretely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
-Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures in comparison to the original study.
+We present the insights of its design and implementation, and assess \tool's ability to uncover new and interesting function calls by fuzzing \UFNumFunctions R functions and inferring their type based on the successful calls, revealing \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures than existing code alone.
+
+
+%
+% Old Abstract
+%
+
+
+% Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
+% Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+% To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool to generate random inputs for functions, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
+
+% In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
+% Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of a program analysis.
+% We implement this approach in a tool called \tool for the R programming language.
+% We present the insights of its design and implementation, and report on an application in the context of language design.
+% Concretely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
+% Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures in comparison to the original study.
 
 \end{abstract}
 
@@ -37,18 +56,18 @@ Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAddition
 \section{Introduction}
 \label{sec:introduction}
 
-% Fuzzing is a thing, and it is useful.
-Fuzzing has established itself as useful technique for test generation and security.
-At a high level, fuzzers are automated testing tools that call programs with randomly generated inputs in an effort to uncover bugs, locate security vulnerabilities, generate new software tests, etc.
+Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. 
+Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
 
-% Dynamic language semantics make it difficult to fuzz in them.
-While fuzzing has seen widespread adoption across many different programming languages, \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges revolving around the idea that dynamically typed code tends not to result in runtime errors.
-Essentially, the semantics of these languages is very permissive: for instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined} instead of crashing, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
-This is in addition to the lack of static types, which leaves fuzzers with very little information about what types of values are expected.
+To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool that essentially generates new function calls with random inputs. 
+Fuzz testing is extremely popular and has seen seen widespread adoption across many different programming languages, but \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges revolving around the idea that dynamically typed code tends not to result in runtime errors.
+For instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined} instead of crashing, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
+On top of this, the lack of static types leaves fuzzers with very little information about what types of values are expected.
 
 % Value types are hard to come by.
-Another important challenge facing general-purpose fuzzing in the context of dynamic languages is the difficulty in obtaining complex values automatically.
+Another important challenge facing fuzzing in the context of dynamic languages is the difficulty in generating complex values automatically.
 In a statically typed language like Java, the shapes of user-defined objects can be inferred from a static class definition, and this not always possible in, e.g., dynamic prototype-based inheritance in JavaScript, or dynamic object definition in R.
+This limits a fuzzer's ability to generate realistic and interesting inputs.
 % Thus, an effective fuzzer would need to be manually equipped with the ability to create values of these complex types, which places an undue burden on developers.
 
 % In this paper, ...
@@ -58,9 +77,9 @@ We propose a fuzzing approach that relies on this database to generate new funct
 This approach is implemented in a tool called \tool for the R programming language.
 
 % Retrofitted.
-To help show that the approach discovers new and interesting calls to functions, we built a post-processor that infers types for all of the successful calls \tool uncovered.
-As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing}.
-This assessment reveals many successful function calls with type signatures \AT{words} 
+To help show that the approach discovers new and interesting calls to functions, we inferred types for all of the successful calls \tool uncovered.
+As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing} wherein function types were inferred from recorded call signatures in R package test, example, and vignette code.
+Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures compared to the original study.
 
 % As a use case for our tool, we argue that a general-purpose fuzzer can aid data-driven retrofitted type system designers by providing them with unexpected but valid inputs for existing functions.
 % We develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
@@ -254,16 +273,18 @@ Therefore, we need to check whether is has been shared and if it has not, we hav
 
 \FK{Some info about how the data layout?}
 
-Next to the value itself, the database also store metadata about the value ( and its origin (the package, function and argument name).
-We also store a unique call ids for each sequence of argument values coming from the same call.
+Next to the value itself, the database also store metadata about the value and its origin (the package, function and argument name).
+We also store a unique call id for each sequence of argument values coming from the same call.
 This way we can reproduce the calls that were recorded by the tracer.
 
-Currently, the database supports all R values except for environments, closures and external pointers.
+THe database maintains tables for the runtime metadata (such as the number of calls a value has been seen), the static metadata, the origins, call ids and class names. Origin strings and class names are interned. It also builds search indexes using fast compressed bitsets\cite{chambi2016better}.
+
+Currently, the database supports all R values except environments, closures \PB{We could support them just by removing a check in a condition, the problem is that it blows up the size of the DB.} and external pointers.
 
 \paragraph{Queries}
 
 % Can relax on: "na", "length", "attributes", "type", "vector", "ndims", "class"
-The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, the class, the presence of NAs, the attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for list data).
+The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, the class name, the presence of NAs, the number of attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for vector data).
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
 The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
 
