@@ -324,12 +324,11 @@ If there were no errors, warnings, or crashes, then the successful call is added
 \label{sec:assessment}
 
 We used \tool to stress-test one of the proposed type system designs for R~\cite{turcotte2020designing}.
-The type system was designed empirically with the help of dynamic program analysis inferring function signatures from types of values observed from running extracted code from R packages.
-The key to the design process was the recorded calls that were used to generate call signatures, which were then unified into function signatures.
-The more unique successful calls there are, the more precise signature can be inferred.
+The type system was designed empirically, with the help of a dynamic program analysis that inferred function signatures from the types of values observed while running extracted code from R packages.
+In a nutshell, a type was inferred from each call to a function, and these types were unified into a single function type, and the more unique successful calls there are, the more precise the inferred signature.
 It would be therefore interesting to see \emph{how many additional successful calls can \tool generates?}
 
-We ran all of our experiments on Intel Xeon 6140, 2.30GHz with 72 cores and 256GB of RAM running Ubuntu 18.04.
+We ran all of our experiments on a Ubuntu 18.04 server with a 72 core Intel Xeon 6140 2.30GHz processor and 256GB of RAM. \AT{Are the changes I made accurate? Is it one processor with 72 logical cores?}
 
 \paragraph{Recording}
 
@@ -338,11 +337,9 @@ For this we used the extracted runnable code from the same corpus as the origina
 Generating the database took \TODO{XXX - @pierre} and takes \DBFileSize of disk space.
 It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DBNumFunctionsRnd functions in \DBNumPackages packages.
 Figure~\ref{fig:argsdb-value-distribution} shows the distribution of main value types.
-The vast majority of values are vectors and matrices of real numbers.
-This is not surprising as R is mostly used for numerical computing.
-Most of them \TODO{@pierre - do we know how many?} contain attributes which is what makes them interesting as the attributes bring additional semantic meaning.
-The next big group are lists.
-They can be divided into two groups, data frames (two dimensional, column-major structure representing observations of number of variables) and records.
+The vast majority of values are vectors and matrices of real numbers which is unsurprising as R is mostly used for numerical computing.
+That said, most of them \TODO{@pierre - do we know how many?} contain \textit{attributes} which is what makes them interesting, as attributes add semantic meaning.
+The next big group are lists, which can be divided into two groups, data frames (two dimensional, column-major structure representing observations) and records.
 \TODO{@pierre - anything else interesting?}
 
 \begin{figure}
@@ -354,33 +351,41 @@ They can be divided into two groups, data frames (two dimensional, column-major 
 
 \paragraph{Fuzzing}
 
-With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus (we set a 48 hours time-bound for experiment).
-Each function was run \UFTracingBudget times fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
-In total we made \UFNumTracesRnd calls. Out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+Armed with this database, \tool fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus (we set a 48 hours time-bound for the experiment).
+Each function was run \UFTracingBudget times, with 32 functions being fuzzed in parallel~\footnote{More parallelization resulted in tasks being killed due to running out of memory.}.
+In total, \UFNumTracesRnd calls were made, and out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
 The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cases, the R process crashed.
-While the aim of this work is not bug finding, we have investigated one such a crash that appeared in \code{stringi}\footnote{A sting processing library, one of the most downloaded package in R.}.
-It was caused by memory corruption by large input.
+While the aim of this work is not bug finding, we have investigated one such crash in \code{stringi}\footnote{A sting processing library, one of the most downloaded package in R.}, and found that it was caused by memory corruption by large input.
 The issue was reported, acknowledged and fixed.
 
-The results of the fuzzing is shown in Figure~\ref{fig:call-signatures}.
-For almost the half of the functions (\UFNumFunctionSignatrSignatureRatio), the fuzzer managed to generate together over \UFSignatrSignaturesRnd new unique call signatures (on average \UFAvgNewSignatrSignature per function).
+The results of fuzzing is shown in Figure~\ref{fig:call-signatures}.
+For almost the half of the functions (\UFNumFunctionSignatrSignatureRatio), the fuzzer managed to generate over \UFSignatrSignaturesRnd new unique call signatures (on average \UFAvgNewSignatrSignature per function).
 This is \UFSignatrBaselineSignaturesRatio times more than what was obtained from just running the extracted code.
-It fuzzed signatures overlapped in only \UFSharedSignature cases (in \UFSharedSignatureFunction function).
-
-The main cause of failing to generate a successful call for the \UFNumMissingFunctionSignatr functions is that they requires a specific shape of one or more of its arguments.
-In some cases the error message could have been used as a feedback to the fuzzer (and we plan to address it in the next iteration).
-However, that is not easy to generalize.
-During the fuzzing, we recorded \UFNumErrorMessagesRnd distinct errors and the vast majority are user-defined errors that only make sense in particular context.
-Another problem cause functions that use non-standard scoping, the R ability to allow functions to capture unevaluated expression passed to its arguments and evaluate it in custom environment.
+Fuzzed signatures overlapped in only \UFSharedSignature cases, in \UFSharedSignatureFunction functions.
+\tool failed to generate a single successful call for \UFNumMissingFunctionSignatr functions because these functions require an incredibly specific shape of one or more of its arguments, or one or more arguments depended on another.
+% As an example of the latter case, certain functions from the {\tt dplyr} data manipulation package required a data frame alongside an unevaluated expression made up of column names from the data frame. 
+In some cases the error message could have been used as a feedback to the fuzzer (and we plan to address it in the next iteration), but this is not easy to generalize.
+% During fuzzing, we recorded \UFNumErrorMessagesRnd distinct errors and the vast majority are user-defined errors that only make sense in particular context.
+Other problematic functions include those that use non-standard scoping, and those that manipulate arguments as unevaluated expressions, evaluating them in custom environments.
+% Another issue is with functions that use non-standard scoping, the R ability to allow functions to capture unevaluated expression passed to its arguments and evaluate it in custom environment.
 
 \paragraph{Summary}
 
-A large number of R functions is highly polymorphic and for those the fuzzing approach can generate a large number of new calls.
-These new calls will certainly impact the design of the R type system as the degree of polymorphism is higher than it was thought before.
+\tool uncovers many interesting calls to functions beyond what tracing uncovers alone, particularly for highly polymorphic functions.
 
-\FK{Say that in the end we want to use both - tracing and fuzzing.}
-\FK{Do we define what is a call signature? Probably it is obvious, but just in case?}
-\FK{We should define what is a successful call}
+
+% A large number of R functions is highly polymorphic and for those the fuzzing approach can generate a large number of new calls.
+% These new calls will certainly impact the design of the R type system as the degree of polymorphism is higher than it was thought before.
+
+\begin{itemize}
+    \item \FK{Say that in the end we want to use both - tracing and fuzzing.} \AT{I feel like we could support this as a takeaway by showing the fuzzed + traced signatures together somehow.}
+    \item \FK{Do we define what is a call signature? Probably it is obvious, but just in case?} 
+    \item \FK{We should define what is a successful call.} \AT{I think it's mentioned in the approach.}
+\end{itemize}
+
+
+
+
 
 % how often R crashed
 
