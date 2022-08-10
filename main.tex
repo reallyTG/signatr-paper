@@ -40,17 +40,16 @@ Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAddition
 % Fuzzing is a thing, and it is useful.
 Fuzzing has established itself as useful technique for test generation and security.
 At a high level, fuzzers are automated testing tools that call programs with randomly generated inputs in an effort to uncover bugs, locate security vulnerabilities, generate new software tests, etc.
-\AT{Say a bit more.}
 
 % Dynamic language semantics make it difficult to fuzz in them.
-While fuzzing has seen widespread adoption across many different programming languages, \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges which revolve around the idea that dynamically typed code tends not to result in runtime errors.
-Essentially, the semantics of these languages is very permissive: for instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined}, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
-More broadly, the lack of static types at function boundaries that are checked ahead-of-time can cause \AT{\ldots}
+While fuzzing has seen widespread adoption across many different programming languages, \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges revolving around the idea that dynamically typed code tends not to result in runtime errors.
+Essentially, the semantics of these languages is very permissive: for instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined} instead of crashing, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
+This is in addition to the lack of static types, which leaves fuzzers with very little information about what types of values are expected.
 
 % Value types are hard to come by.
 Another important challenge facing general-purpose fuzzing in the context of dynamic languages is the difficulty in obtaining complex values automatically.
 In a statically typed language like Java, the shapes of user-defined objects can be inferred from a static class definition, and this not always possible in, e.g., dynamic prototype-based inheritance in JavaScript, or dynamic object definition in R.
-Thus, an effective fuzzer would need to be manually equipped with the ability to create values of these complex types, which places an undue burden on developers.
+% Thus, an effective fuzzer would need to be manually equipped with the ability to create values of these complex types, which places an undue burden on developers.
 
 % In this paper, ...
 To get around this, we propose a general-purpose approach for fuzzing that relies on a database of values observed during the execution of real code.
@@ -59,9 +58,12 @@ We propose a fuzzing approach that relies on this database to generate new funct
 This approach is implemented in a tool called \tool for the R programming language.
 
 % Retrofitted.
-\AT{Sort of comes out of nowhere.}
-As a use case for our tool, we argue that a general-purpose fuzzer can aid data-driven retrofitted type system designers by providing them with unexpected but valid inputs for existing functions.
-We develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
+To help show that the approach discovers new and interesting calls to functions, we built a post-processor that infers types for all of the successful calls \tool uncovered.
+As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing}.
+This assessment reveals many successful function calls with type signatures \AT{words} 
+
+% As a use case for our tool, we argue that a general-purpose fuzzer can aid data-driven retrofitted type system designers by providing them with unexpected but valid inputs for existing functions.
+% We develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
 
 
 In summary, the contributions of this paper are:
