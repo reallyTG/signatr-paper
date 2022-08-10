@@ -101,6 +101,8 @@ Some major challenges include:
 \item R does not have type annotations or a static type system, so there is very little to suggest what are expected arguments or return values.
 % This means there is nothing to suggest what the expected arguments or return values of a function could be, and thus there is little to guide test generation.
 
+\item Primitive values (booleans, integers, doubles, complex numbers, and character strings) each have a separate ``NA'' value indicating that data is ``not available''--some operations fail on these NAs.
+
 \item Most values are vectors or lists, and can be annotated by key-value pairs called \textit{attributes}. 
 These annotations, coupled with reflection, are the basic building blocks for many advanced features of R. 
 For example, the S3 dynamic dispatch mechanism is based on the class attribute of a value.
@@ -128,6 +130,8 @@ An R object is simply a value with \code{class} attribute denoting its classes a
 %     parameters R functions have.} 
 
 \end{compactitem}
+
+
 
 % R ecosystem stuff.
 The primary abstraction in R is a function, and functions are grouped into packages that can be imported. 
@@ -256,7 +260,8 @@ Currently, the database supports all R values except for environments, closures 
 
 \paragraph{Queries}
 
-The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, \AT{list all}, and length of the value.
+% Can relax on: "na", "length", "attributes", "type", "vector", "ndims", "class"
+The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, the class, the presence of NAs, the attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for list data).
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
 The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
 
@@ -328,8 +333,15 @@ The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cas
     }\label{fig:call-signatures}
 \end{figure}
 
-\section{Conclusions}
+\section{Conclusions and Future Work}
 \label{sec:conclusions}
+
+Fuzz testing is an incredibly useful technique for finding bugs and security vulnerabilities in code, but is hindered by the permissive semantics of dynamic languages as well as the dynamic nature of how complex data is defined.
+In this work, we proposed a fuzzing approach that relies on a database of observed values to provide complex and realistic inputs for functions.
+We implement this approach in a tool called \tool for the R programming language, and show that \tool uncovers many new and interesting call signatures for R functions.
+
+While this approach was implemented in a tool for R, it is broadly applicable in all languages, and the only real language-specific aspect is the set of parameters in the database.
+For instance, one could implement a similar tool for object-oriented languages, where database metadata could include object field names (e.g., JavaScript).
 
 %%
 %% The next two lines define the bibliography style to be used, and
