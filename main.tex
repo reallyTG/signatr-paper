@@ -262,7 +262,7 @@ It is implemented in C++ with an R API (in 4.5K lines of C++ code and 1.5K lines
 \paragraph{Storage}
 
 The database stores only unique values.
-We use XXH128, a 128bit hashing algorithm\footnote{fast non-cryptographic hash algorithm, \Cf \url{https://cyan4973.github.io/xxHash/}} for uniqueness.
+We use XXH128, a 128bit hashing algorithm\footnote{Fast non-cryptographic hash algorithm, \Cf \url{https://cyan4973.github.io/xxHash/}} for uniqueness, in combination with a hashtable based on RobinHood hashing\footnote{\url{https://github.com/martinus/robin-hood-hashing}}.
 While the hashing is fast, it works on an array of bytes so we need to lower R values into a binary format.
 R provides a binary serialization format XDR\footnote{\Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Serialization-Formats}}, but it is costly. We also need to strip the serialization of sources of non-determinism related to character encoding.
 Since there is a large number of values being pushed to the database in an average recording session, we try to avoid the serialization as much as possible.
@@ -271,22 +271,23 @@ If it is not set, then it is a fresh value so we serialize it, compute its hash,
 If it is set, we have seen the value before, however, despite that R implements a copy-on-write semantics, until a value is aliased, it can be modified in place.
 Therefore, we need to check whether is has been shared and if it has not, we have to serialize it and check its presence using the hash.
 
-\FK{Some info about how the data layout?}
 
 Next to the value itself, the database also store metadata about the value and its origin (the package, function and argument name).
 We also store a unique call id for each sequence of argument values coming from the same call.
 This way we can reproduce the calls that were recorded by the tracer.
 
-THe database maintains tables for the runtime metadata (such as the number of calls a value has been seen), the static metadata, the origins, call ids and class names. Origin strings and class names are interned. It also builds search indexes using fast compressed bitsets\cite{chambi2016better}.
+The database maintains tables for the hashes, the runtime metadata (such as the number of calls a value has been seen), the static metadata, the origins, call ids and class names. Variable lengths data, such as the serialized values, are stored as a combination of 2 tables, one giving an offset to the table holding the size of the value and the value itself. Origin strings and class names are interned. It also builds search indexes using fast compressed bitsets\cite{chambi2016better}.
 
 Currently, the database supports all R values except environments, closures \PB{We could support them just by removing a check in a condition, the problem is that it blows up the size of the DB.} and external pointers.
+
+The read mode only loads metadata and retrieves actual values from disk on demand, making it possible to query larger-than-memory databases.
 
 \paragraph{Queries}
 
 % Can relax on: "na", "length", "attributes", "type", "vector", "ndims", "class"
 The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, the class name, the presence of NAs, the number of attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for vector data).
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
-The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length).
+The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length). A custom R predicate can also be used to filter desired values.
 
 \FK{More info, but I'm not familiar with this}
 
