@@ -19,12 +19,12 @@
 
 \begin{abstract}
 
-Dynamic program analysis is often the only way to precisely analyse code written in dynamic programming languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
+Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. % renders static analysis loose its imprecision to the point is becomes useless.
 Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
 To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool to generate random inputs for functions, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws function inputs from a database populated with values recorded from existing code.
-Unlike traditional use of fuzzing, \Ie, to discover bugs and performance pathologies, our aim to find new \textit{successful} function invocations that can extend the scope of a program analysis.
+Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of a program analysis.
 We implement this approach in a tool called \tool for the R programming language.
 We present the insights of its design and implementation, and report on an application in the context of language design.
 Concretely, we stress-test one of the proposed type system designs for R, where function types were inferred from recorded call signatures from functions tests and examples.
@@ -238,14 +238,14 @@ The tracer is written in 600 lines of C++ code.
 
 To store recorded R values we developed a our own database.
 The reason was two-fold: (1) we can leverage some domain-knowledge of R values and store them efficiently, (2) we can optimize it for the type of queries that the fuzzer does.
-It is implemented in C++ with R API (in 4.5K lines of C++ code and 1.5K lines of R code).
+It is implemented in C++ with an R API (in 4.5K lines of C++ code and 1.5K lines of R code).
 
 \paragraph{Storage}
 
 The database stores only unique values.
 We use XXH128, a 128bit hashing algorithm\footnote{fast non-cryptographic hash algorithm, \Cf \url{https://cyan4973.github.io/xxHash/}} for uniqueness.
 While the hashing is fast, it works on an array of bytes so we need to lower R values into a binary format.
-R provides a binary serialization format XDR\footnote{\Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Serialization-Formats}}, but it is costly.
+R provides a binary serialization format XDR\footnote{\Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Serialization-Formats}}, but it is costly. We also need to strip the serialization of sources of non-determinism related to character encoding.
 Since there is a large number of values being pushed to the database in an average recording session, we try to avoid the serialization as much as possible.
 For this we use the \emph{trace} bit that is part of the R value header\footnote{A bit in the \code{SEXP} C struct that represents R value. \Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Rest-of-header}}.
 If it is not set, then it is a fresh value so we serialize it, compute its hash, store it into the database and set the trace bit.
@@ -254,7 +254,7 @@ Therefore, we need to check whether is has been shared and if it has not, we hav
 
 \FK{Some info about how the data layout?}
 
-Next to the value itself, the database also store metadata about the value and its origin (the package, function and argument name).
+Next to the value itself, the database also store metadata about the value ( and its origin (the package, function and argument name).
 We also store a unique call ids for each sequence of argument values coming from the same call.
 This way we can reproduce the calls that were recorded by the tracer.
 
