@@ -6,3 +6,6 @@ build:
 sync:
 	 scp 'prl2:signatr/signatr-experiment/analysis/SLE22/*.tex' code-and-figures
 	 scp 'prl2:signatr/signatr-experiment/analysis/SLE22/*.pdf' code-and-figures
+
+clean:
+	latexmk -c main.tex

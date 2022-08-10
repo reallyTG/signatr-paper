@@ -30,7 +30,7 @@ Besides existing code, which can paint an incomplete picture of how code can be 
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code.
 Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
 We implement this approach in a tool called \tool for the R programming language.
-We present the insights of its design and implementation, and assess \tool's ability to uncover new and interesting function calls by fuzzing \UFNumFunctions R functions and inferring their type based on the successful calls, revealing \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures than existing code alone.
+We present the insights of its design and implementation, and assess \tool's ability to uncover new successful function calls by fuzzing \UFNumFunctions R functions, revealing \UFSignatrSignatures (\UFSignatrBaselineSignaturesRatio times) new unique call signatures than existing code alone.
 
 
 %
@@ -79,7 +79,7 @@ This approach is implemented in a tool called \tool for the R programming langua
 % Retrofitted.
 To help show that the approach discovers new and interesting calls to functions, we inferred types for all of the successful calls \tool uncovered.
 As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing} wherein function types were inferred from recorded call signatures in R package test, example, and vignette code.
-Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrAdditionalSignatures (\UFSignatrAdditionalSignaturesRatio times) more unique call signatures compared to the original study.
+Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrSignaturesRnd (\UFSignatrBaselineSignaturesRatio times) new unique call signatures compared to the original study.
 
 % As a use case for our tool, we argue that a general-purpose fuzzer can aid data-driven retrofitted type system designers by providing them with unexpected but valid inputs for existing functions.
 % We develop an approach for synthesizing the results of fuzzing into a type signature for a function, entirely parameterized over a type system expressed as (1) a function to infer the type of a value, and (2) a function to determine if one type is a subtype of another.
@@ -310,51 +310,85 @@ If there were no errors, warnings, or crashes, then the successful call is added
 
 \input{code-and-figures/approach-algorithms.tex}
 
-\subsection{Use Case: Typing Successful Traces}
-
-To help show that this fuzzing approach uncovers interesting calls, we inferred types from the resulting successful calls $succs$.
-As R has no static type system, we use the type system proposed by Turcotte et al.~\cite{turcotte2020designing} by utilizing their {\tt contractr} type inference tool.
-% This is the stage where a user can define their type system, which is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$).
-This helps determine the set of \textit{unique} call signatures for a function, as two calls with different values that have the same type can be collapsed at this stage.
-For example, say the identity function {\tt id} was called with {\tt 4} and {\tt 2}; the types of each of those calls is $int \rightarrow int$, and so they would be collapsed together. 
-
-The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
+% \subsection{Use Case: Typing Successful Traces}
+%
+% To help show that this fuzzing approach uncovers interesting calls, we inferred types from the resulting successful calls $succs$.
+% As R has no static type system, we use the type system proposed by Turcotte et al.~\cite{turcotte2020designing} by utilizing their {\tt contractr} type inference tool.
+% % This is the stage where a user can define their type system, which is input as two functions: one to infer the type of some value $v$, and another to take two types $t_1$ and $t_2$ and judge whether or not they can be simplified (e.g., determine if $t_1$ is a subtype of $t_2$, $t_1 <: t_2$).
+% This helps determine the set of \textit{unique} call signatures for a function, as two calls with different values that have the same type can be collapsed at this stage.
+% For example, say the identity function {\tt id} was called with {\tt 4} and {\tt 2}; the types of each of those calls is $int \rightarrow int$, and so they would be collapsed together. 
+%
+% The fuzzing approach is implemented in a tool called \tool, written in R and C++, and is available as an R package.
 
 \section{Assessment}
 \label{sec:assessment}
 
-The main motivation for building \tool was to have a tool that can generate successful calls to R functions, \emph{in addition} to what we can record by running the available executable code from R packages.
-Therefore, to assess the usefulness of \tool we need to answer \emph{how many additional successful calls can \tool generates?}.
+We used \tool to stress-test one of the proposed type system designs for R~\cite{turcotte2020designing}.
+The type system was designed empirically with the help of dynamic program analysis inferring function signatures from types of values observed from running extracted code from R packages.
+The key to the design process was the recorded calls that were used to generate call signatures, which were then unified into function signatures.
+The more unique successful calls there are, the more precise signature can be inferred.
+It would be therefore interesting to see \emph{how many additional successful calls can \tool generates?}
 
 We ran all of our experiments on Intel Xeon 6140, 2.30GHz with 72 cores and 256GB of RAM running Ubuntu 18.04.
 
-We base the experiment on the same corpus as we used in the \typer paper (412 packages, 17.4K public functions).
+\paragraph{Recording}
+
 First, we created a \sxpdb for the fuzzer.
-For this we used the extracted runnable code from the corpus packages which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
+For this we used the extracted runnable code from the same corpus as the original study which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
 Generating the database took \TODO{XXX - @pierre} and takes \DBFileSize of disk space.
 It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DBNumFunctionsRnd functions in \DBNumPackages packages.
-\FK{Info about value distribution? A pie chart?}
+Figure~\ref{fig:argsdb-value-distribution} shows the distribution of main value types.
+The vast majority of values are vectors and matrices of real numbers.
+This is not surprising as R is mostly used for numerical computing.
+Most of them \TODO{@pierre - do we know how many?} contain attributes which is what makes them interesting as the attributes bring additional semantic meaning.
+The next big group are lists.
+They can be divided into two groups, data frames (two dimensional, column-major structure representing observations of number of variables) and records.
+\TODO{@pierre - anything else interesting?}
 
-With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus.
-Each function was run \UFTracingBudget times, taking it 36 hours while fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
+\begin{figure}
+    \centering
+    \includegraphics[width=\columnwidth]{code-and-figures/argsdb-value-distribution.pdf}
+    \caption{The \sxpdb value type distribution}
+    \label{fig:argsdb-value-distribution}
+\end{figure}
 
-In total we made \UFNumTracesRnd calls (\UFTracesSize of traces and \UFTracesReturnDbsSize). Out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
-The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cases, R processed crashed.
+\paragraph{Fuzzing}
 
-\FK{Report the stringi bug that was fixed}
+With this database, we fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus (we set a 48 hours time-bound for experiment).
+Each function was run \UFTracingBudget times fuzzing 32 functions in parallel\footnote{Trying bigger number resulted in tasks being killed due to running out of memory.}.
+In total we made \UFNumTracesRnd calls. Out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
+The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cases, the R process crashed.
+While the aim of this work is not bug finding, we have investigated one such a crash that appeared in \code{stringi}\footnote{A sting processing library, one of the most downloaded package in R.}.
+It was caused by memory corruption by large input.
+The issue was reported, acknowledged and fixed.
 
+The results of the fuzzing is shown in Figure~\ref{fig:call-signatures}.
+For almost the half of the functions (\UFNumFunctionSignatrSignatureRatio), the fuzzer managed to generate together over \UFSignatrSignaturesRnd new unique call signatures (on average \UFAvgNewSignatrSignature per function).
+This is \UFSignatrBaselineSignaturesRatio times more than what was obtained from just running the extracted code.
+It fuzzed signatures overlapped in only \UFSharedSignature cases (in \UFSharedSignatureFunction function).
 
+The main cause of failing to generate a successful call for the \UFNumMissingFunctionSignatr functions is that they requires a specific shape of one or more of its arguments.
+In some cases the error message could have been used as a feedback to the fuzzer (and we plan to address it in the next iteration).
+However, that is not easy to generalize.
+During the fuzzing, we recorded \UFNumErrorMessagesRnd distinct errors and the vast majority are user-defined errors that only make sense in particular context.
+Another problem cause functions that use non-standard scoping, the R ability to allow functions to capture unevaluated expression passed to its arguments and evaluate it in custom environment.
 
+\paragraph{Summary}
+
+A large number of R functions is highly polymorphic and for those the fuzzing approach can generate a large number of new calls.
+These new calls will certainly impact the design of the R type system as the degree of polymorphism is higher than it was thought before.
+
+\FK{Say that in the end we want to use both - tracing and fuzzing.}
+\FK{Do we define what is a call signature? Probably it is obvious, but just in case?}
+\FK{We should define what is a successful call}
 
 % how often R crashed
 
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{code-and-figures/uf-call-signatures.pdf}
-    \caption{
-        Number of call signatures obtained by fuzzing in addition to tracing. Each line represents one function.
-        \FK{an alternative would be to show proportionally how many out of all sigantures come from fuzzing / traing - no need for log scale then}
-    }\label{fig:call-signatures}
+    \caption{Number of unique call signatures obtained by tracing and fuzzing. The fuzzer succeeded to generate new calls for \UFNumFunctionSignatrSignatureRatio of the functions in the corpus. The tracer based on the existing code covered \UFNumFunctionBaselineSignatureRatio of the functions.}
+    \label{fig:call-signatures}
 \end{figure}
 
 \section{Conclusions and Future Work}
@@ -365,7 +399,7 @@ In this work, we proposed a fuzzing approach that relies on a database of observ
 We implement this approach in a tool called \tool for the R programming language, and show that \tool uncovers many new and interesting call signatures for R functions.
 
 While this approach was implemented in a tool for R, it is broadly applicable in all languages, and the only real language-specific aspect is the set of parameters in the database.
-For instance, one could implement a similar tool for object-oriented languages, where database metadata could include object field names (e.g., JavaScript).
+For instance, one could implement a similar tool for object-oriented languages, where database metadata could include object field names (\Eg, JavaScript).
 
 %%
 %% The next two lines define the bibliography style to be used, and
