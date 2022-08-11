@@ -19,15 +19,18 @@
 
 \begin{abstract}
 
-Dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages due to their permissive semantics. 
-That said, dynamic analysis is not without its limitations, as quality executable code is needed for the analysis to run.
-Besides existing code, which can paint an incomplete picture of how code can be run, one could use a fuzzer to generate yet more runnable code, but the shape of user-defined data is difficult to glean statically which limits a fuzzer's ability to generate realistic inputs.
+The fast-and-loose, permissive semantics of dynamic programming languages limit the power of static analyses, and so precise analysis is often achieved through running code with dynamic program analysis. 
+When trying to draw broader conclusions using dynamic analysis, however, existing code is often insufficient as it does not typically cover the full gamut of what is possible in a dynamic language.
+Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code, but the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
+
+% Dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages as the permissive semantics of these languages limits the power of static analyses, but is limited in its own right by the amount of code available to analyze.
+% Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code, but the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
 
 % The permissive semantics of dynamic languages complicates the design and implementation of static tooling for these languages.
 % Because of this, dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages, but dynamic analysis is not without its limitations, as quality executable code is needed for the analysis to run.
 % Besides existing code, which can paint an incomplete picture of how code can be run, one could use a fuzzer to generate yet more runnable code, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
 
-In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code.
+In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code to generate novel and interesting inputs.
 Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
 We implement this approach in a tool called \tool for the R programming language.
 We present the insights of its design and implementation, and assess \tool's ability to uncover new successful function calls by fuzzing \UFNumFunctions R functions, revealing \UFSignatrSignatures (\UFSignatrBaselineSignaturesRatio times) new unique call signatures than existing code alone.
@@ -57,12 +60,13 @@ We present the insights of its design and implementation, and assess \tool's abi
 \label{sec:introduction}
 
 Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. 
-Dynamic analysis, however, requires both code to run and valid inputs for said code; while one could exclusively analyze existing code (e.g., tests or examples), such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+Dynamic analysis, however, requires both code to run and valid inputs for said code; to draw conclusions about a code base, one could run the existing, runnable code, e.g., tests or examples, but such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
 
-To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool that essentially generates new function calls with random inputs. 
-Fuzz testing is extremely popular and has seen seen widespread adoption across many different programming languages, but \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges revolving around the idea that dynamically typed code tends not to result in runtime errors.
+To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool that essentially tries to exercise code with random inputs. 
+Fuzz testing is extremely popular and has seen seen widespread adoption across many different programming languages, in particular to find bugs and security vulnerabilities, but \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges that revolve around the idea that \textit{dynamically typed code tends not to result in runtime errors}.
 For instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined} instead of crashing, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
-On top of this, the lack of static types leaves fuzzers with very little information about what types of values are expected.
+A tool that tries to run code automatically will thus have very little to go on vis-\`a-vis the correctness of the code being generated.
+On top of this, the lack of static types leaves fuzzers with very little information about what types of values are expected to begin with.
 
 % Value types are hard to come by.
 Another important challenge facing fuzzing in the context of dynamic languages is the difficulty in generating complex values automatically.
