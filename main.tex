@@ -20,18 +20,12 @@
 \begin{abstract}
 
 The fast-and-loose, permissive semantics of dynamic programming languages limit the power of static analyses, and so precise analysis is often achieved through running code with dynamic program analysis. 
-When trying to draw broader conclusions using dynamic analysis, however, existing code is often insufficient as it does not typically cover the full gamut of what is possible in a dynamic language.
+That said, dynamic analysis is only as good as the quality and quantity of available runnable code, and relying solely on things like application test suites is fraught as they likely do not cover the full gamut of what is possible, especially in a dynamic language.
+% When trying to draw broader conclusions using dynamic analysis, however, existing code is often insufficient as it does not typically cover the full gamut of what is possible in a dynamic language.
 Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code, but the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
 
-% Dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages as the permissive semantics of these languages limits the power of static analyses, but is limited in its own right by the amount of code available to analyze.
-% Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code, but the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
-
-% The permissive semantics of dynamic languages complicates the design and implementation of static tooling for these languages.
-% Because of this, dynamic analysis is often the primary recourse for precise program analysis in dynamically typed languages, but dynamic analysis is not without its limitations, as quality executable code is needed for the analysis to run.
-% Besides existing code, which can paint an incomplete picture of how code can be run, one could use a fuzzer to generate yet more runnable code, but fuzzing in the context of dynamic languages is tricky, as the shape of user-defined data is difficult to automatically determine ahead-of-time.
-
 In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code to generate novel and interesting inputs.
-Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
+% Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
 We implement this approach in a tool called \tool for the R programming language.
 We present the insights of its design and implementation, and assess \tool's ability to uncover new successful function calls by fuzzing \UFNumFunctions R functions, revealing \UFSignatrSignatures (\UFSignatrBaselineSignaturesRatio times) new unique call signatures than existing code alone.
 
@@ -82,7 +76,7 @@ This approach is implemented in a tool called \tool for the R programming langua
 
 % Retrofitted.
 To help show that the approach discovers new and interesting calls to functions, we inferred types for all of the successful calls \tool uncovered.
-As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing} wherein function types were inferred from recorded call signatures in R package test, example, and vignette code.
+As R lacks static types, we use the {\tt contractr} type inference tool from the Turcotte et al. paper proposing a type annotation language for R~\cite{turcotte2020designing}, wherein function types were inferred from recorded calls in R package test, example, and vignette code (we define a function type inferred in this way as a \textit{call signature}).
 Fuzzing \UFNumFunctions of those R functions, \tool generated \UFSignatrSignaturesRnd (\UFSignatrBaselineSignaturesRatio times) new unique call signatures compared to the original study.
 
 % As a use case for our tool, we argue that a general-purpose fuzzer can aid data-driven retrofitted type system designers by providing them with unexpected but valid inputs for existing functions.
@@ -193,21 +187,31 @@ Next, in parallel, the scripts are run, and all unique function arguments are re
 Finally, all the databases are merged into one and duplicate values are discarded.
 R OpenSci targets~\cite{landau2021_targets} is used for orchestration, but any generic batch scheduler will do.
 
-\AT{I'm surprised to see dynamic analysis talked about here.
-Besides, the fuzzing itself isn't really parameterized over an analysis, but users would have the option to do that.}
-The fuzzer (Fig.~\ref{fig:fuzz-pipeline}) is parameterized by the concrete dynamic analysis of interest.
-The approach relies on hooks before and after function execution, allowing inputs to be preprocessed, output to be processed, and errors to be caught.
-% There are two main hooks: before a function is called allowing one to preprocess the input, and after the function is done executing allowing one to process the output or error depending whether the call was successful or not.
-The after-invocation hook can also provide feedback to the fuzzer, beyond signalling success or failure.
-\AT{Is the following critical to the fuzzer? I don't know that it belongs here, even if it is interesting.}
-In dynamic analysis, we are often interested in much finer information about the function execution than simply start and end.
-For example, for the call signature inference use case, we would like to know if any of the function arguments was coerced to another type or if there was a method dispatch on it.
-This is supported via instrumentation.
-The fuzzer runs the functions using \emph{R-dyntrace}, an extended R virtual machine that supports attaching callbacks to various runtime events~\cite{goel2019}.
-The dynamic analysis can therefore use one of the 40 runtime events to get the necessary insights (including dispatch and coercion).
+As for the fuzzing phase (Fig.~\ref{fig:fuzz-pipeline}), a list of functions to fuzz as well as a \sxpdb are taken as input, and the functions are fuzzed in parallel.
+The output of the fuzzer is a list of successful function calls, where a successful call is defined as one that generated no warnings, errors, and did not cause R to crash.
+The fuzzer relies on hooks before and after function execution: the hook before invocation allows the fuzzer to process inputs, and the hook after allows errors to be signalled and handled and the return value to be processed.
+The after-invocation hook can also be used to expand the feedback given to the fuzzer.
+% In dynamic analysis, we are often interested in much finer information about the function execution than simply start and end.
+% For example, for the call signature inference use case, we would like to know if any of the function arguments was coerced to another type or if there was a method dispatch on it.
+% This is supported via instrumentation.
+Concretely, the fuzzer runs the functions using \emph{R-dyntrace}, an extended R virtual machine that supports attaching callbacks to various runtime events~\cite{goel2019}.
+If a user would like to plug their own dynamic analysis directly into the pipeline, the can do so by using the 40 runtime events exposed by \emph{R-dyntrace}.
 
-To make the fuzzer more robust, one instance of the fuzzer is run per target function, consisting of two processes, since R could crash while running code (and it does, \Cf Section~\ref{sec:assessment}) and we do not want to loose the partial results.
-Therefore we have one worker doing the fuzzing and another supervising re-spawning the worker when it dies.
+% \AT{I'm surprised to see dynamic analysis talked about here.
+% Besides, the fuzzing itself isn't really parameterized over an analysis, but users would have the option to do that.}
+% The fuzzer (Fig.~\ref{fig:fuzz-pipeline}) is parameterized by the concrete dynamic analysis of interest.
+% The approach relies on hooks before and after function execution, allowing inputs to be preprocessed, output to be processed, and errors to be caught.
+% % There are two main hooks: before a function is called allowing one to preprocess the input, and after the function is done executing allowing one to process the output or error depending whether the call was successful or not.
+% The after-invocation hook can also provide feedback to the fuzzer, beyond signalling success or failure.
+% \AT{Is the following critical to the fuzzer? I don't know that it belongs here, even if it is interesting.}
+% In dynamic analysis, we are often interested in much finer information about the function execution than simply start and end.
+% For example, for the call signature inference use case, we would like to know if any of the function arguments was coerced to another type or if there was a method dispatch on it.
+% This is supported via instrumentation.
+% The fuzzer runs the functions using \emph{R-dyntrace}, an extended R virtual machine that supports attaching callbacks to various runtime events~\cite{goel2019}.
+% The dynamic analysis can therefore use one of the 40 runtime events to get the necessary insights (including dispatch and coercion).
+
+Since R can crash (and did in our experiments, \Cf Section~\ref{sec:assessment}) and we do not want to lose partial results, each instance of the fuzzer consists of two processes:
+One worker doing the fuzzing, and supervisor that can re-spawn the worker if it dies.
 Furthermore, we run the fuzzing isolated in a container as calling arbitrary code with "random" values could have dire consequences.
 
 The tool consists of three standalone components: \code{argtracer}, the tracer responsible for running the R code and recording function invocation, \code{sxpdb}, the value database, and \code{generatr}, the fuzzer responsible for generating inputs.
@@ -236,7 +240,7 @@ Technically, they are R packages written in combination of R and C++.
 
 \subsection{Tracer}\label{sec:argtracer}
 
-The tracer is built on top of \emph{R-dyntrace} \AT{cite?}.
+The tracer is built on top of \emph{R-dyntrace}~\cite{goel2019}.
 The two main runtime events we use are a function exit, where all arguments are captured and stored, and a context jump, which is necessary to keep the call stack healthy.
 The R interpreter uses long jumps for loops control flow, return statements and error handling.
 In the case of long jump, the exit hook is ignored, so to make sure that we do not lose any function exits we maintain our version of R call stack.
@@ -275,7 +279,7 @@ We also store a unique call id for each sequence of argument values coming from 
 
 The database maintains tables for the hashes, runtime metadata (e.g., how often a value was seen), static metadata, origins, call ids, and class names. 
 Variable length data, such as the serialized values, are stored in a combination of 2 tables, one giving an offset into the other table which holds the size of the value and the value itself. 
-\AT{what does this mean: } Origin strings and class names are interned. 
+Origin strings and class names are interned, i.e., each unique string is stored separately, and referred to by pointer. 
 Search indices are built using fast compressed bitsets~\cite{chambi2016better}.
 The database supports all R values except external pointers.
 Environments and closures (which contain environments) were not stored in the database during our experiments since they dramatically increased the size, though the database can store them.
@@ -325,7 +329,7 @@ If there were no errors, warnings, or crashes, then the successful call is added
 
 We used \tool to stress-test one of the proposed type system designs for R~\cite{turcotte2020designing}.
 The type system was designed empirically, with the help of a dynamic program analysis that inferred function signatures from the types of values observed while running extracted code from R packages.
-In a nutshell, a type was inferred from each call to a function, and these types were unified into a single function type, and the more unique successful calls there are, the more precise the inferred signature.
+In a nutshell, a type was inferred from each call to a function, and these types were unified into a single function type, and the more unique successful calls there are, the more precise the inferred signature---the types inferred from successful calls are referred to as \textit{call signatures}.
 It would be therefore interesting to see \emph{how many additional successful calls can \tool generates?}
 
 We ran all of our experiments on a Ubuntu 18.04 server with a 72 core Intel Xeon 6140 2.30GHz processor and 256GB of RAM. \AT{Are the changes I made accurate? Is it one processor with 72 logical cores?}
@@ -372,17 +376,7 @@ Other problematic functions include those that use non-standard scoping, and tho
 \paragraph{Summary}
 
 \tool uncovers many interesting calls to functions beyond what tracing uncovers alone, particularly for highly polymorphic functions.
-
-
-% A large number of R functions is highly polymorphic and for those the fuzzing approach can generate a large number of new calls.
-% These new calls will certainly impact the design of the R type system as the degree of polymorphism is higher than it was thought before.
-
-\begin{itemize}
-    \item \FK{Say that in the end we want to use both - tracing and fuzzing.} \AT{I feel like we could support this as a takeaway by showing the fuzzed + traced signatures together somehow.}
-    \item \FK{Do we define what is a call signature? Probably it is obvious, but just in case?} 
-    \item \FK{We should define what is a successful call.} \AT{I think it's mentioned in the approach.}
-\end{itemize}
-
+Together, existing and generated calls yields a wealth of interesting, runnable code.
 
 
 
