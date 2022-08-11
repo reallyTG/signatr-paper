@@ -77,7 +77,7 @@ This limits a fuzzer's ability to generate realistic and interesting inputs.
 % In this paper, ...
 To get around this, we propose a general-purpose approach for fuzzing that relies on a database of values observed during the execution of real code.
 We develop a tracer that collects information about function calls and values observed during code execution, and this information is stored in a database with an expressive query API.
-We propose a fuzzing approach that relies on this database to generate new function inputs based on massive amounts of existing observed values.
+Our fuzzing approach relies on this database to generate new function inputs that are based on massive amounts of existing observed values.
 This approach is implemented in a tool called \tool for the R programming language.
 
 % Retrofitted.
@@ -107,12 +107,12 @@ The tool is open source and is available online alongside the data set used for 
 
 \paragraph{Related Work}
 
+In this paper, we will propose an approach to fuzzing where no input is required from the programmer, and automatically discovers how the function or program under study should be called.
 There are myriad fuzzing tools and approaches, e.g., \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable.
 Essentially, sequences of method calls are generated to test classes, and randomly generated arguments for these calls are used in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
 While this technique is effective at generating tests involving non-trivial objects that are built up from a number of method calls, these objects are uncommon in data science languages, where the challenge is generating realistic data.
 \emph{QuickCheck}~\cite{quickcheck} is a tool for Haskell that allows programmers to express program properties that are subject to random fuzz testing.
 American Fuzzy Lop (AFL)~\cite{afl} is a state-of-the-art industrial fuzzer; AFL takes a program and one example file as input, calls the program with the input, and then uses a variety of heuristics to transform the input and fuzz the program.
-\AT{Do we want to say:} In this work, we propose an approach to fuzzing where no input is required from the programmer, and automatically discovers how the function or program under study should be called.
 
 \paragraph{The R Programming Language}
 
@@ -178,43 +178,39 @@ As part of our assessment of \tool, we will run it on the functions in this corp
 \section{Approach}
 \label{sec:fuzzy}
 
-In this section, we describe the design and implementation of the \tool fuzzer.
-At the end, in the Appendix~\ref{sec:demo}, we show an example how to use it.
-
-\subsection{Overview}
-
-The tool provides two main operations:
+There are two main phases to the approach:
 %
 \begin{inparaenum}[(1)]
-\item \emph{recording}, where it runs R code and records each function invocation into the value database (\sxpdb), and
-\item \emph{fuzzing}, where it uses the recorded values to generate input into R functions. 
+\item \emph{recording}, where R code is run and function arguments and return values are recorded in the value database, and % records each function invocation into the value database (\sxpdb), and
+\item \emph{fuzzing}, where values are drawn from the database as input to R functions. 
 \end{inparaenum}
 %
-The tool is meant to be run as a part of a data pipeline that analyzes a corpus of code.
-This is pictured in the diagrams in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline} for the recording and fuzzing modes respectively.
+% The tool is meant to be run as a part of a data pipeline that analyzes a corpus of code.
+This is pictured in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline} for the recording and fuzzing modes respectively.
 
-First, we extract the runnable code from R packages (snippets of examples from documentation and tests) into R scripts.
-Next, in parallel, we run the scripts, recording all unique function parameters into \sxpdb.
-Finally, we merge all the \sxpdb into one while discarding duplicates.
-We use R OpenSci targets~\cite{landau2021_targets} for orchestration, but any generic batch scheduler will do as well.
+For the recording phase (Fig.~\ref{fig:sxpdb-pipeline}), runnable code is extracted from examples and tests in R packages into R scripts.
+Next, in parallel, the scripts are run, and all unique function arguments are recorded into the database, called the \sxpdb.
+Finally, all the databases are merged into one and duplicate values are discarded.
+R OpenSci targets~\cite{landau2021_targets} is used for orchestration, but any generic batch scheduler will do.
 
-Once we have the value database, we can start fuzzing.
-The fuzzer is parameterized by the concrete dynamic analysis we are interested in.
-There are two main hooks: before a function is called allowing one to preprocess the input, and after the function is done executing allowing one to process the output or error depending whether the call was successful or not.
-The after-invocation hook can also provide feedback to the fuzzer, currently we support signalling success or failure.
+\AT{I'm surprised to see dynamic analysis talked about here.
+Besides, the fuzzing itself isn't really parameterized over an analysis, but users would have the option to do that.}
+The fuzzer (Fig.~\ref{fig:fuzz-pipeline}) is parameterized by the concrete dynamic analysis of interest.
+The approach relies on hooks before and after function execution, allowing inputs to be preprocessed, output to be processed, and errors to be caught.
+% There are two main hooks: before a function is called allowing one to preprocess the input, and after the function is done executing allowing one to process the output or error depending whether the call was successful or not.
+The after-invocation hook can also provide feedback to the fuzzer, beyond signalling success or failure.
+\AT{Is the following critical to the fuzzer? I don't know that it belongs here, even if it is interesting.}
 In dynamic analysis, we are often interested in much finer information about the function execution than simply start and end.
 For example, for the call signature inference use case, we would like to know if any of the function arguments was coerced to another type or if there was a method dispatch on it.
 This is supported via instrumentation.
 The fuzzer runs the functions using \emph{R-dyntrace}, an extended R virtual machine that supports attaching callbacks to various runtime events~\cite{goel2019}.
 The dynamic analysis can therefore use one of the 40 runtime events to get the necessary insights (including dispatch and coercion).
 
-A natural way is to run one instance of fuzzer per target function.
-Each instance consists of two processes.
-The reason is that R could crash (and it does, \Cf Section~\ref{sec:assessment}) and we do not want to loose the partial results.
+To make the fuzzer more robust, one instance of the fuzzer is run per target function, consisting of two processes, since R could crash while running code (and it does, \Cf Section~\ref{sec:assessment}) and we do not want to loose the partial results.
 Therefore we have one worker doing the fuzzing and another supervising re-spawning the worker when it dies.
-Furthermore, we run the fuzzing isolated in a container as "random" values goes into real code which could have dare consequences.
+Furthermore, we run the fuzzing isolated in a container as calling arbitrary code with "random" values could have dire consequences.
 
-The tool consists of three standalone components: \code{argtracer} the tracer responsible for running the R code and recoding function invocation, \code{sxpdb} the value database, and \code{generatr} the fuzzer responsible for generating inputs.
+The tool consists of three standalone components: \code{argtracer}, the tracer responsible for running the R code and recording function invocation, \code{sxpdb}, the value database, and \code{generatr}, the fuzzer responsible for generating inputs.
 Technically, they are R packages written in combination of R and C++.
 
 \begin{figure}
@@ -240,18 +236,18 @@ Technically, they are R packages written in combination of R and C++.
 
 \subsection{Tracer}\label{sec:argtracer}
 
-The tracer is built on top of \emph{R-dyntrace}.
-The two main runtime events we use are a function exit and a context jump.
-The former one is where we capture all the evaluated arguments and pass them to \sxpdb.
-The latter one is necessary to keep our call stack in balance.
+The tracer is built on top of \emph{R-dyntrace} \AT{cite?}.
+The two main runtime events we use are a function exit, where all arguments are captured and stored, and a context jump, which is necessary to keep the call stack healthy.
 The R interpreter uses long jumps for loops control flow, return statements and error handling.
-In the case of long jump, the exit hook is ignored, to make sure, we do not loose any function exit, we maintain our version of R call stack.
+In the case of long jump, the exit hook is ignored, so to make sure that we do not lose any function exits we maintain our version of R call stack.
 
-When we see a call, we only get a pointer to R closure.
-The function name and the package that contains it can only be found by looking at the currently loaded namespaces and the symbols they contain.
-Because of this, we eagerly build an index of package and function names when we see a call to load namespace function (package loading in implemented in R).
-The fact that R is implemented in a mixture of R and C requires that we maintain a black list of R calls that are connected to R internals.
-Overall, we ignore 70 functions that are used for namespace loading and manipulation, and reflection.
+When the tracer sees a call, it only sees a pointer to an R closure.
+% When we see a call, we only get a pointer to R closure.
+The function name and the package that contains the actual function can only be found by looking at the currently loaded namespaces and the symbols they contain.
+Because of this, the tracer eagerly builds an index of package and function names when namespace functions are loaded (note: package loading in implemented in R).
+% I don't think this is necessary to say.
+% The fact that R is implemented in a mixture of R and C requires that we maintain a black list of R calls that are connected to R internals.
+% Overall, we ignore 70 functions that are used for namespace loading and manipulation, and reflection.
 
 Regarding performance, there is \TRMinTracingOverhead --- \TRMaxTracingOverhead (\TRAvgTracingOverhead on average) slowdown when running the R code with tracing enabled (based on the running / tracing \TRTracingFiles R scripts recording 8.2M unique values of 3.2GB size).
 The main cost comes from value serialization (\Cf Section~\ref{sec:sxpdb}).
@@ -259,8 +255,7 @@ The tracer is written in 600 lines of C++ code.
 
 \subsection{Database of Values}\label{sec:sxpdb}
 
-To store recorded R values we developed a our own database.
-The reason was two-fold: (1) we can leverage some domain-knowledge of R values and store them efficiently, (2) we can optimize it for the type of queries that the fuzzer does.
+The database is hand-written in order to (1) leverage some domain-knowledge of R values and store them efficiently, and (2) optimize it for the types of queries supported by the query API.
 It is implemented in C++ with an R API (in 4.5K lines of C++ code and 1.5K lines of R code).
 
 \paragraph{Storage}
@@ -272,28 +267,29 @@ R provides a binary serialization format XDR\footnote{\Cf \url{https://cran.r-pr
 Since there is a large number of values being pushed to the database in an average recording session, we try to avoid the serialization as much as possible.
 For this we use the \emph{trace} bit that is part of the R value header\footnote{A bit in the \code{SEXP} C struct that represents R value. \Cf \url{https://cran.r-project.org/doc/manuals/r-release/R-ints.html\#Rest-of-header}}.
 If it is not set, then it is a fresh value so we serialize it, compute its hash, store it into the database and set the trace bit.
-If it is set, we have seen the value before, however, despite that R implements a copy-on-write semantics, until a value is aliased, it can be modified in place.
-Therefore, we need to check whether is has been shared and if it has not, we have to serialize it and check its presence using the hash.
+If it is set, we have seen it before, but in spite of R's copy-on-write semantics, values can actually be modified in place until they are aliased, thus we need to check whether or not a value has been shared, and if not then we serialize and check its presence using the hash.
 
 
 Next to the value itself, the database also store metadata about the value and its origin (the package, function and argument name).
-We also store a unique call id for each sequence of argument values coming from the same call.
-This way we can reproduce the calls that were recorded by the tracer.
+We also store a unique call id for each sequence of argument values coming from the same call to reproduce the calls that were recorded by the tracer.
 
-The database maintains tables for the hashes, the runtime metadata (such as the number of calls a value has been seen), the static metadata, the origins, call ids and class names. Variable lengths data, such as the serialized values, are stored as a combination of 2 tables, one giving an offset to the table holding the size of the value and the value itself. Origin strings and class names are interned. It also builds search indexes using fast compressed bitsets\cite{chambi2016better}.
+The database maintains tables for the hashes, runtime metadata (e.g., how often a value was seen), static metadata, origins, call ids, and class names. 
+Variable length data, such as the serialized values, are stored in a combination of 2 tables, one giving an offset into the other table which holds the size of the value and the value itself. 
+\AT{what does this mean: } Origin strings and class names are interned. 
+Search indices are built using fast compressed bitsets~\cite{chambi2016better}.
+The database supports all R values except external pointers.
+Environments and closures (which contain environments) were not stored in the database during our experiments since they dramatically increased the size, though the database can store them.
 
-Currently, the database supports all R values except environments, closures \PB{We could support them just by removing a check in a condition, the problem is that it blows up the size of the DB.} and external pointers.
-
-The read mode only loads metadata and retrieves actual values from disk on demand, making it possible to query larger-than-memory databases.
+Finally, opening the database in \textit{read mode} only loads metadata and retrieves actual values from disk on demand, making it possible to query larger-than-memory databases.
 
 \paragraph{Queries}
 
 % Can relax on: "na", "length", "attributes", "type", "vector", "ndims", "class"
-The database provides a convenient query API based on this information, which represents search parameters for the database and is comprised of the {\tt typeof}-type, the class name, the presence of NAs, the number of attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for vector data).
+The database provides a convenient query API.
+Values can be queried based on: their {\tt typeof}-type, their class, the presence of NAs, the number of attributes, if the value is a vector or scalar, the dimensions (for tabular data), and length of the value (for vector data).
 % Importantly, the database provides a convenient query API: i.e., one may sample values randomly from the database according to some parameters, such as the type \PB{Should we be more precise?}, or by providing an example value on which some characteristics (again, such as the type) can be relaxed.
-The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with the search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length). A custom R predicate can also be used to filter desired values.
-
-\FK{More info, but I'm not familiar with this}
+The database can be queried for a random value with the desired metadata (e.g., a vector of integers of length 10), or can be queried by providing an existing value along with a list of search parameters to be relaxed (e.g., query the database for a value similar to {\tt 42}, but relax on the length). 
+A custom R predicate can also be used to filter desired values.
 
 \subsection{Fuzzing Technique}
 
