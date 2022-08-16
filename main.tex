@@ -338,11 +338,11 @@ We ran all of our experiments on a Ubuntu 18.04 server with a 72 core Intel Xeon
 
 First, we created a \sxpdb for the fuzzer.
 For this we used the extracted runnable code from the same corpus as the original study which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
-Generating the database took \TODO{XXX - @pierre} and takes \DBFileSize of disk space.
+Generating the database took about 1 day \TODO{@pierre get the more precise number and with the 3 phases: running each file, merging generating the indexes} and takes \DBFileSize of disk space.
 It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DBNumFunctionsRnd functions in \DBNumPackages packages.
 Figure~\ref{fig:argsdb-value-distribution} shows the distribution of main value types.
 The vast majority of values are vectors and matrices of real numbers which is unsurprising as R is mostly used for numerical computing.
-That said, most of them \TODO{@pierre - do we know how many?} contain \textit{attributes} which is what makes them interesting, as attributes add semantic meaning.
+That said, many of them, 47.2\%  contain \textit{attributes} which is what makes them interesting, as attributes add semantic meaning.
 The next big group are lists, which can be divided into two groups, data frames (two dimensional, column-major structure representing observations) and records.
 \TODO{@pierre - anything else interesting?}
 
