@@ -22,12 +22,13 @@
 The fast-and-loose, permissive semantics of dynamic programming languages limit the power of static analyses, and so precise analysis is often achieved through running code with dynamic program analysis. 
 That said, dynamic analysis is only as good as the quality and quantity of available runnable code, and relying solely on things like application test suites is fraught as they likely do not cover the full gamut of what is possible, especially in a dynamic language.
 % When trying to draw broader conclusions using dynamic analysis, however, existing code is often insufficient as it does not typically cover the full gamut of what is possible in a dynamic language.
-Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code, but the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
+Fuzzing is an approach for automatically exercising code, and could be used to generate yet more runnable code.
+However, the shape of user-defined data in dynamic languages is difficult to glean statically, limiting a fuzzer's ability to generate realistic inputs.
 
-In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code to generate novel and interesting inputs.
+In this work, we propose a novel feedback-driven blackbox fuzzing approach which draws inputs from a database of values recorded from existing code.
 % Unlike traditional use of fuzzing, \Ie, to discover bugs and vulnerabilities, our aim to find new \textit{successful} function invocations that can extend the scope of program analysis.
 We implement this approach in a tool called \tool for the R programming language.
-We present the insights of its design and implementation, and assess \tool's ability to uncover new successful function calls by fuzzing \UFNumFunctions R functions, revealing \UFSignatrSignatures (\UFSignatrBaselineSignaturesRatio times) new unique call signatures than existing code alone.
+We present the insights of its design and implementation, and assess \tool's ability to uncover new successful function calls by fuzzing \UFNumFunctions R functions, revealing \UFSignatrSignatures (\UFSignatrBaselineSignaturesRatio times more) new unique call signatures than existing code alone.
 
 
 %
@@ -54,24 +55,25 @@ We present the insights of its design and implementation, and assess \tool's abi
 \label{sec:introduction}
 
 Dynamic analysis is often the only way to precisely analyse code written in dynamic languages as the semantics of these languages render static analyses unsound. 
-Dynamic analysis, however, requires both code to run and valid inputs for said code; to draw conclusions about a code base, one could run the existing, runnable code, e.g., tests or examples, but such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
+Dynamic analysis, however, requires both code to run and valid inputs for said code; to draw conclusions about a code base, one could run the existing, runnable code, \Eg, tests or examples, but such code paints an incomplete picture as the permissive semantics of dynamic languages can lead to puzzling runtime behavior.
 
 To obtain more runnable code, one could make use of a \textit{fuzzer}, a tool that essentially tries to exercise code with random inputs. 
-Fuzz testing is extremely popular and has seen seen widespread adoption across many different programming languages, in particular to find bugs and security vulnerabilities, but \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges that revolve around the idea that \textit{dynamically typed code tends not to result in runtime errors}.
+Fuzz testing is extremely popular and has seen widespread adoption across many different programming languages, primarily to find bugs, performance pathologies and security vulnerabilities.
+However, \textit{dynamically typed} programming languages such as Python, JavaScript, and R pose unique challenges that revolve around the idea that \textit{dynamically typed code tends not to result in runtime errors}.
 For instance, accessing a non-existent field of an object in JavaScript yields the value {\tt undefined} instead of crashing, and basic functions in R will readily coerce values whose types do not match (and the coercion rules depend on the function in question).
 A tool that tries to run code automatically will thus have very little to go on vis-\`a-vis the correctness of the code being generated.
 On top of this, the lack of static types leaves fuzzers with very little information about what types of values are expected to begin with.
 
 % Value types are hard to come by.
 Another important challenge facing fuzzing in the context of dynamic languages is the difficulty in generating complex values automatically.
-In a statically typed language like Java, the shapes of user-defined objects can be inferred from a static class definition, and this not always possible in, e.g., dynamic prototype-based inheritance in JavaScript, or dynamic object definition in R.
+In a statically typed language like Java, the shapes of user-defined objects can be inferred from a static class definition, and this not always possible in, \Eg, dynamic prototype-based inheritance in JavaScript, or dynamic object definition in R.
 This limits a fuzzer's ability to generate realistic and interesting inputs.
 % Thus, an effective fuzzer would need to be manually equipped with the ability to create values of these complex types, which places an undue burden on developers.
 
 % In this paper, ...
 To get around this, we propose a general-purpose approach for fuzzing that relies on a database of values observed during the execution of real code.
 We develop a tracer that collects information about function calls and values observed during code execution, and this information is stored in a database with an expressive query API.
-Our fuzzing approach relies on this database to generate new function inputs that are based on massive amounts of existing observed values.
+Our fuzzing approach relies on this database to generate new function calls using the recorded values.
 This approach is implemented in a tool called \tool for the R programming language.
 
 % Retrofitted.
@@ -105,8 +107,11 @@ In this paper, we will propose an approach to fuzzing where no input is required
 There are myriad fuzzing tools and approaches, e.g., \emph{Randoop}~\cite{pacheco2007randoop} is a feedback-driven random test generation tool for Java, though the technique underpinning it is universally applicable.
 Essentially, sequences of method calls are generated to test classes, and randomly generated arguments for these calls are used in two ways: for primitives, a random value is selected from a predefined, but user-extensible list, and for reference types a value is selected at random from those which have been seen, and if none are available then {\tt null} is selected.
 While this technique is effective at generating tests involving non-trivial objects that are built up from a number of method calls, these objects are uncommon in data science languages, where the challenge is generating realistic data.
-\emph{QuickCheck}~\cite{quickcheck} is a tool for Haskell that allows programmers to express program properties that are subject to random fuzz testing.
-American Fuzzy Lop (AFL)~\cite{afl} is a state-of-the-art industrial fuzzer; AFL takes a program and one example file as input, calls the program with the input, and then uses a variety of heuristics to transform the input and fuzz the program.
+\emph{QuickCheck}~\cite{quickcheck} is a tool originating in the Haskell world that helps with property-based testing.
+While it can generate random program inputs, the strategy of how the random inputs are constructed need to be specified.
+In R we do not have any type information about function parameters neither we know the shape of the values except for the primitive types.
+American Fuzzy Lop (AFL)~\cite{afl} is a state-of-the-art industrial fuzzer; AFL takes a program and one example file as input, calls the program with the input, and then uses a variety of heuristics to transform the input and fuzz the program. The aim of AFL is to find defects, looking for edge cases.
+Our approach on the other hand looks for calls that do not crash the program, but rather discovers new acceptable input.
 
 \paragraph{The R Programming Language}
 
@@ -122,13 +127,13 @@ Some major challenges include:
 
 \item Primitive values (booleans, integers, doubles, complex numbers, and character strings) each have a separate ``NA'' value indicating that data is ``not available''--some operations fail on these NAs.
 
+\item Values are automatically and silently coerced from more specific types to more general types, and each function coerces its parameters as it sees fit.
+
 \item Most values are vectors or lists, and can be annotated by key-value pairs called \textit{attributes}. 
 These annotations, coupled with reflection, are the basic building blocks for many advanced features of R. 
 For example, the S3 dynamic dispatch mechanism is based on the class attribute of a value.
 (In fact, R has multiple different object systems but S3 is the most widespread one.)
-An R object is simply a value with \code{class} attribute denoting its classes as a vector of character strings (values often have multiple classes).
-
-\item Built-in types are automatically and silently coerced from more specific types to more general types, and each function coerces its parameters as it sees fit.
+There is not description of a shape of an S3 object, it is simply a value with \code{class} attribute denoting its classes as a vector of character strings (a value can have multiple classes).
 
 % I don't think we need promises.
 % \item All expressions are evaluated by-need, thus the call \code{f(a+b)}
@@ -138,23 +143,13 @@ An R object is simply a value with \code{class} attribute denoting its classes a
 %     part of the semantics as they can have side effects). These promises can
 %     also be turned back into code by reflection.
 
-% \item R has a copy-on-write semantics for shared values. A value is shared if
-%     it is accessible from more than one variable. This means that side effects
-%     that change shared values are rare. This gives a functional flavor to large
-%     parts of R.
+\item R has a copy-on-write semantics for shared values. A value is shared if
+    it is accessible from more than one variable. This means that side effects
+    that change shared values are rare. This gives a functional flavor to large
+    parts of R.
 
-% \item The primary abstraction in R is a function. Functions are grouped into
-%     packages that can be imported. A function can be generic, allowing an
-%     object-oriented style of programming. \TODO{Some stats about how many
-%     parameters R functions have.} 
-
+ \item The primary abstraction in R is a function.
 \end{compactitem}
-
-
-
-% R ecosystem stuff.
-The primary abstraction in R is a function, and functions are grouped into packages that can be imported. 
-A function can be generic, allowing an object-oriented style of programming. \TODO{Some stats about how many parameters R functions have.}
 
 % Types for R.
 There has been some effort to develop a static type system for R.
@@ -180,7 +175,7 @@ There are two main phases to the approach:
 \end{inparaenum}
 %
 % The tool is meant to be run as a part of a data pipeline that analyzes a corpus of code.
-This is pictured in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline} for the recording and fuzzing modes respectively.
+This is pictured in Figures~\ref{fig:sxpdb-pipeline} and \ref{fig:fuzz-pipeline} for the recording and fuzzing phases respectively.
 
 For the recording phase (Fig.~\ref{fig:sxpdb-pipeline}), runnable code is extracted from examples and tests in R packages into R scripts.
 Next, in parallel, the scripts are run, and all unique function arguments are recorded into the database, called the \sxpdb.
@@ -240,7 +235,7 @@ Technically, they are R packages written in combination of R and C++.
 
 \subsection{Tracer}\label{sec:argtracer}
 
-The tracer is built on top of \emph{R-dyntrace}~\cite{goel2019}.
+The tracer is built on top of aforementioned \emph{R-dyntrace}.
 The two main runtime events we use are a function exit, where all arguments are captured and stored, and a context jump, which is necessary to keep the call stack healthy.
 The R interpreter uses long jumps for loops control flow, return statements and error handling.
 In the case of long jump, the exit hook is ignored, so to make sure that we do not lose any function exits we maintain our version of R call stack.
@@ -332,12 +327,12 @@ The type system was designed empirically, with the help of a dynamic program ana
 In a nutshell, a type was inferred from each call to a function, and these types were unified into a single function type, and the more unique successful calls there are, the more precise the inferred signature---the types inferred from successful calls are referred to as \textit{call signatures}.
 It would be therefore interesting to see \emph{how many additional successful calls can \tool generates?}
 
-We ran all of our experiments on a Ubuntu 18.04 server with a 72 core Intel Xeon 6140 2.30GHz processor and 256GB of RAM. \AT{Are the changes I made accurate? Is it one processor with 72 logical cores?}
+We ran all of our experiments on a Ubuntu 18.04 server with a 72 core Intel Xeon 6140 2.30GHz processor and 256GB of RAM.
 
 \paragraph{Recording}
 
 First, we created a \sxpdb for the fuzzer.
-For this we used the extracted runnable code from the same corpus as the original study which consists of \DBNumSourceFiles files containing \DBSourceLinesOfCodeRnd lines of R code (excluding comments and new lines).
+For this we used the extracted runnable code from the same corpus as the original study which consists of \DBNumSourceFiles R scripts containing \DBSourceLinesOfCodeRnd lines of code (excluding comments and new lines).
 Generating the database took about 1 day \TODO{@pierre get the more precise number and with the 3 phases: running each file, merging generating the indexes} and takes \DBFileSize of disk space.
 It contains \DBValuesRnd unique values recorded from \DBNumCallsRnd calls to \DBNumFunctionsRnd functions in \DBNumPackages packages.
 Figure~\ref{fig:argsdb-value-distribution} shows the distribution of main value types.
@@ -356,7 +351,7 @@ The next big group are lists, which can be divided into two groups, data frames 
 \paragraph{Fuzzing}
 
 Armed with this database, \tool fuzzed \UFNumFunctions functions from \UFNumPackages packages, a subset of the original corpus (we set a 48 hours time-bound for the experiment).
-Each function was run \UFTracingBudget times, with 32 functions being fuzzed in parallel~\footnote{More parallelization resulted in tasks being killed due to running out of memory.}.
+Each function was run \UFTracingBudget times, with 32 functions being fuzzed in parallel.\footnote{More parallelization resulted in tasks being killed due to running out of memory.}
 In total, \UFNumTracesRnd calls were made, and out of that, \UFRatioSuccessTraces were successful, resulting in \UFNumSuccessTraces traces of \UFNumSuccessFunctions functions coming from \UFNumSuccessPackages packages.
 The vast majority of errors were exceptions, but in \UFNumOfCrashedRSessions cases, the R process crashed.
 While the aim of this work is not bug finding, we have investigated one such crash in \code{stringi}\footnote{A sting processing library, one of the most downloaded package in R.}, and found that it was caused by memory corruption by large input.
