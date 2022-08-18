@@ -4,8 +4,8 @@ build:
 	latexmk -pdf main.tex
 
 sync:
-	 scp 'prl2:signatr/signatr-experiment/analysis/SLE22/*.tex' code-and-figures
-	 scp 'prl2:signatr/signatr-experiment/analysis/SLE22/*.pdf' code-and-figures
+	 scp 'prl3:signatr/signatr-experiment/pipeline-fuzzing-parallel/*.tex' code-and-figures
+	 scp 'prl3:signatr/signatr-experiment/pipeline-fuzzing-parallel/*.pdf' code-and-figures
 
 clean:
 	latexmk -c main.tex
