@@ -362,11 +362,14 @@ The vast majority of errors were exceptions, but in \UFNumCrashedRSessions cases
 While the aim of this work is not bug finding, we have investigated one such crash in \code{stringi}\footnote{A sting processing library, one of the most downloaded package in R.}, and found that it was caused by memory corruption by large input.
 The issue was reported, acknowledged and fixed.
 
+\paragraph{Results}
+
 The results of fuzzing is shown in Figure~\ref{fig:call-signatures}.
-For \UFNumFunctionsSignatrSignatrue functions (\UFNumFunctionsSignatrToCorpusSignatureRatio), the fuzzer managed to generate over \UFSignatrSignaturesRnd new unique call signatures (on average \UFAvgNewSignatrSignature per function).
-In comparison, recording calls from the extracted runnable code covers \UFNumFunctionsBaselineToCorpusSignatureRatio of functions\footnote{The examples and tests extracted from R packages do not usually cover the full package.} generating \UFOnlyBaselineSignatures unique call signatures.
-Thus we get \UFSignatrBaselineSignaturesRatio times more call signatures via fuzzing.
-Fuzzed signatures overlapped in only \UFSharedSignatures cases in \UFSharedSignatuesFunctions functions.
+From the \UFNumFunctions functions in our \UFNumPackages packages corpus, the fuzzer managed to generate call signatures for \UFNumFunctionsSignatrSignature functions (\UFNumFunctionsSignatrToCorpusSignatureRatio).
+In comparison, tracing, \Ie, recording calls by running the extracted code covers \UFNumFunctionsBaselineSignature functions (\UFNumFunctionsBaselineToCorpusSignatureRatio).
+While, the fuzzer covered less functions, it generated over \UFSignatrSignaturesRnd new unique call signatures (on average \UFAvgNewSignatrSignature per function), \Ie, \UFSignatrBaselineSignaturesRatio times more call signatures in comparison to tracing.
+Out of the \UFNumFunctionsSignatrSignature functions, \UFNumFunctionsOnlySignatrSignature functions were covered only by fuzzing.
+Fuzzed signatures overlapped with traced ones in only \UFSharedSignatures cases in \UFSharedSignatuesFunctions functions.
 
 The reason that \tool failed to generate a single successful call for \UFNumMissingFunctionSignatr functions is because they require a very specific shape of one or more of its arguments, or the arguments depended on one-another.
 As an example of the latter case, certain functions from the {\tt dplyr} data manipulation package required a data frame alongside an unevaluated expression made up of column names from the data frame. 
@@ -375,22 +378,23 @@ In some cases the error message could have been used as a feedback to the fuzzer
 % During fuzzing, we recorded \UFNumErrorMessagesRnd distinct errors and the vast majority are user-defined errors that only make sense in particular context.
 % Another issue is with functions that use non-standard scoping, the R ability to allow functions to capture unevaluated expression passed to its arguments and evaluate it in custom environment.
 
-Finally, we looked at code coverage.
+Next, we looked on the code coverage to see if the new call signatures exercise new code in comparison to tracing.
 Using the \code{covr} package\footnote{The only tool for R code coverage, \Cf~\url{https://covr.r-lib.org}}, we computed line coverage of R source code for \UFNumFunctionsWithBothCoverage functions using the fuzzed calls, and separately using the traced calls.
 This is not all of the functions that \tool managed to fuzz, as running \code{covr} on some functions caused runtime errors, and also repeating certain calls failed (both fuzzed and traced).
-That said, calls generated using \tool improved coverage on average by \UFBetterCoverageMean in \UFBetterCoverage functions.
+For \UFBetterCoverage functions, the \tool improved code coverage on average by \UFBetterCoverageMean.
+This suggests that most of the new call signatures do not exercise new code paths, but instead point to extensive polymorphism of R functions caused by both genericity and the implicit coercion. 
 
 \paragraph{Summary}
 
 \tool uncovers many interesting calls to functions beyond what tracing uncovers alone, particularly for highly polymorphic functions.
-Together, existing and generated calls yields a wealth of interesting, runnable code.
+Together, existing and generated calls yields a wealth of interesting, runnable code that will be essential fot the further design of a possible type system for the R programming language.
 
 % how often R crashed
 
 \begin{figure}
     \centering
     \includegraphics[width=\columnwidth]{code-and-figures/uf-call-signatures.pdf}
-    \caption{Number of unique call signatures obtained by tracing and fuzzing. The fuzzer succeeded to generate new calls for \UFNumFunctionsSignatrToCorpusSignatureRatio of the functions in the corpus. The tracer based on the existing code covered \UFNumFunctionsBaselineToCorpusSignatureRatio of the functions.}
+    \caption{Number of unique call signatures.}
     \label{fig:call-signatures}
 \end{figure}
 
